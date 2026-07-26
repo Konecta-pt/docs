@@ -1,52 +1,66 @@
 ---
 title: "Auditoria & Limpeza"
-description: "Achados verificados no código/infra — candidatos a limpar."
+description: "Lista por repositório de código/ficheiros a limpar — verificado."
 ---
 
-Lista **verificada** (não especulativa). Cada item foi confirmado nesta análise.
+Lista **verificada** por scan ao código. Legenda de confiança:
+🟢 remover (confirmado sem referências) · 🟡 rever (routing por ficheiro / a confirmar) · 🔵 infra/processo.
 
 ## Contrato Frontend ↔ API: limpo ✅
+21 chamadas `/api/v1/...` dos frontends cruzadas com as rotas definidas: **0 apontam para rotas inexistentes**.
 
-Cruzadas as **21** chamadas `/api/v1/...` dos frontends (konecta.pt, admin, App)
-com as **rotas definidas** nas 3 APIs (+ Pages Functions do admin):
-**0 chamadas apontam para rotas inexistentes**. Sem gralhas de rota nos clientes.
+## Ficheiros lixo / temporários 🟢
+| Repo | Ficheiro |
+|---|---|
+| API-PAYMENTS | `.DS_Store` |
+| admin-dashboard | `tsconfig.tsbuildinfo` (deve estar no `.gitignore`) |
+| konecta.pt | `src/lib/_table.tmp` |
+| payments-konecta-web | `.next/`, `out/`, `.vercel/`, `.wrangler/` commitados (artefactos de build — gitignore) |
 
-## Candidatos a limpar
+## konecta.pt (site) 🟢
+Confirmados **sem referências** (0 imports):
+- `src/pages/Status.tsx` — **página morta** (a rota `/status` usa o `Help`, não esta).
+- `src/components/NavLink.tsx`
+- `src/components/home/FeaturedOffers.tsx`
+- `src/components/home/PromoBanner.tsx`
 
-<AccordionGroup>
-  <Accordion title="Webhook do Stripe duplicado">
-    `POST /api/v1/webhooks/stripe` existe no **API-BACKEND** e no **API-PAYMENTS**.
-    Confirmar qual é o ativo em produção e remover/redirecionar o outro.
-  </Accordion>
-  <Accordion title="Worker konecta-status substituído pelo OneUptime">
-    `API-BACKEND/workers-status` (`status.konecta.pt`, cron `*/5`) foi substituído
-    pela status page do **OneUptime**. Candidato a **desativar**.
-  </Accordion>
-  <Accordion title="Branches obsoletas">
-    `develop` (API-BACKEND, API-ESIMS, API-PAYMENTS, App),
-    `feat/cloudflare-workers-migration` (3 APIs) e `dependabot/...` (konecta.pt).
-    Apagar as que já não servem — manter só `main` + `dev`.
-  </Accordion>
-  <Accordion title="payments-konecta-web com build falhado">
-    Apareceu "Build failed" no OneUptime. Corrigir o build antes de promover.
-  </Accordion>
-  <Accordion title="Vulnerabilidades Dependabot">
-    Reportadas em vários repos (ex.: konecta.pt, API-BACKEND). Tratar via
-    `npm audit fix` numa branch ou ligar Dependabot security updates.
-  </Accordion>
-  <Accordion title="LB — placeholders e domínio isolado">
-    O `Caddyfile` tinha upstreams `SUBSTITUIR` (corrigido localmente, por publicar).
-    Falta migrar o LB para um **domínio isolado** (`lb.statuskonecta.pt`) e pôr os
-    fallbacks `api-esims` (503) e `api-backend` (000) saudáveis.
-  </Accordion>
-</AccordionGroup>
+## App (mobile) 🟢
+Código morto confirmado (0 usos — debug/test/old/exemplos):
+- `src/components/common/OnboardingScreenOld.tsx`
+- `src/components/common/OnboardingScreenNew.tsx`
+- `src/components/common/TestR2Assets.tsx`
+- `src/components/common/SupabaseDebug.tsx`
+- `src/components/common/ParticleEffect.tsx`
+- `src/utils/debugAuth.ts`
+- `src/examples/dualDatabaseUsage.ts`
+
+🟡 A rever (Expo Router usa `app/` por convenção — não são órfãos): `HomeScreen`,
+`KonectaLogo/KonectaLogoSVG`, `VPNMetricsCard`, `DeviceCompatibilityBanner`,
+`ThemeToggle`, `Screen`, `GlobeIcon`, `useAssets`, `instantNotificationService`,
+`useUserProfileStore` — verificar uso real antes de mexer.
+
+## payments-konecta-web 🟡
+- **Build falhado** (OneUptime) → corrigir primeiro.
+- Muitos componentes aparecem **não referenciados** pelas páginas (`ErrorModal`,
+  `MBWayPaymentForm`, `CardPaymentForm`, `PaymentMethodSelector`,
+  `ThreeDSecureModal`, `SuccessModal`, `PlanSummary`, `SecurityBadge`,
+  `CheckoutHeader`, `PaymentMethodCard`, `TestCards`) — confirmar contra a página de
+  checkout antes de remover. Provável legado.
+- Remover artefactos commitados (ver acima).
+
+## admin-dashboard 🟢
+- Sem componentes órfãos. Só o `tsconfig.tsbuildinfo` (lixo).
+
+## Backends & Infra 🔵
+- **`konecta-status`** (`API-BACKEND/workers-status`, `status.konecta.pt`, cron `*/5`) —
+  substituído pelo **OneUptime** → desativar/remover.
+- **Webhook Stripe duplicado**: `/api/v1/webhooks/stripe` no API-BACKEND **e** API-PAYMENTS
+  → confirmar o ativo, remover o outro.
+- **Branches obsoletas**: `develop` (API-BACKEND, API-ESIMS, API-PAYMENTS, App),
+  `feat/cloudflare-workers-migration` (3 APIs), `dependabot/*` (konecta.pt) → apagar.
+- **Vulnerabilidades Dependabot** em vários repos → `npm audit fix` / Dependabot updates.
+- **LB**: migrar para domínio isolado (`lb.statuskonecta.pt`); sanar fallbacks
+  `api-esims` (503) e `api-backend` (000).
 
 ## Limitações conhecidas (não são bugs)
-
-- **Mapa da Overview:** 209/210 países pintam. O **Kosovo** não pinta por ausência
-  no mapa base (`world-atlas`), não por gralha.
-
-## Como reproduzir a auditoria de rotas
-
-Extrair rotas definidas (`grep` de `app.get/post`, `*.Routes.*`) e cruzar com os
-literais `/api/v1/...` dos frontends. 0 sem correspondência = contrato limpo.
+- Mapa da Overview: 209/210 países pintam; **Kosovo** não pinta por ausência no mapa base.

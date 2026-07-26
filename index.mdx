@@ -5,13 +5,12 @@ description: "Plataforma de eSIM para viagens: repositórios, stack e como tudo 
 
 ## O que é a Konecta
 
-A Konecta vende **eSIMs de dados para viajantes** (mais de 210 países). A plataforma
-corre em **Cloudflare** (Workers + Pages), com **Supabase** como base de dados.
+A Konecta vende **eSIMs de dados para viajantes** (mais de 210 destinos). A plataforma corre em **Cloudflare** (Workers \+ Pages), com **Supabase** como base de dados.
 
 ## Os repositórios
 
 | Repositório | Tipo | Papel | Onde corre |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | [API-BACKEND](/repos/api-backend) | Worker (Hono) | API principal: auth, pedidos, checkout, admin, webhooks | `api.konecta.pt` |
 | [API-ESIMS](/repos/api-esims) | Worker (Hono) | Integração com o fornecedor de eSIMs, ciclo de vida do eSIM | `eu-esims.konecta.pt` |
 | [API-PAYMENTS](/repos/api-payments) | Worker (Hono) | Pagamentos (Stripe, MB WAY) | `payments.konecta.pt` |
@@ -22,10 +21,10 @@ corre em **Cloudflare** (Workers + Pages), com **Supabase** como base de dados.
 
 ## Stack transversal
 
-- **Backends:** Cloudflare Workers + [Hono](https://hono.dev), TypeScript.
-- **Frontends:** React + Vite (site, admin) e Next.js (checkout web), Cloudflare Pages.
+- **Backends:** Cloudflare Workers \+ [Hono](https://hono.dev), TypeScript.
+- **Frontends:** React \+ Vite (site, admin) e Next.js (checkout web), Cloudflare Pages.
 - **Base de dados:** Supabase (Postgres) — o service role é usado nos Workers/admin.
-- **Pagamentos:** Stripe + MB WAY.
+- **Pagamentos:** Stripe \+ MB WAY.
 - **Fornecedor de eSIM:** esimcard.com.
 - **Monitorização/estado:** [OneUptime](/status-monitoring) (externo à Cloudflare).
 
@@ -35,5 +34,4 @@ corre em **Cloudflare** (Workers + Pages), com **Supabase** como base de dados.
 - **Estado via OneUptime** em `statuskonecta.pt` — se algo cair, é comunicado.
 - **IVA sempre 23%**, incluído no preço apresentado e cobrado.
 
-Continua em [Arquitetura](/architecture) e em [Deploys](/deployment) para o fluxo de
-branches e ambientes.
+Continua em [Arquitetura](/architecture) e em [Deploys](/deployment) para o fluxo de branches e ambientes.

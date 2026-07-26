@@ -39,12 +39,6 @@
           "repos/payments-web",
           "repos/app"
         ]
-      },
-      {
-        "group": "Infraestrutura",
-        "pages": [
-          "repos/load-balancer"
-        ]
       }
     ]
   },

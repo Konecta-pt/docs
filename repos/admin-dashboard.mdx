@@ -1,0 +1,37 @@
+---
+title: "admin-dashboard (konecta-admin)"
+description: "Painel de administração — React/Vite + Pages Functions."
+---
+
+<Info>
+`konecta-admin` · `admin.konecta.pt` · React + Vite (SPA) + **Cloudflare Pages
+Functions** (Hono) em `functions/`. Protegido por **Cloudflare Access**.
+</Info>
+
+## Estrutura
+
+- `src/pages/` — páginas do painel (ver navegação em `src/components/Layout.tsx`).
+- `src/lib/api.ts` — acesso a dados: **Supabase** (service role) + chamadas aos
+  workers (`ESIMS_URL`, `Authorization: Bearer VITE_INTERNAL_API_SECRET`).
+- `functions/` — Pages Functions sob `/api/v1/admin/*`, com `csrfGuard()`
+  (exige `X-Konecta-Admin: 1` + Origin) e `cfAccessAuth()`.
+
+## Páginas (src/pages)
+
+Overview (mapa de países), Pedidos, Pagamentos, Stripe, Faturas, eSIMs, Produtos,
+Campanhas, Promo Codes, Concorrência, Auditoria SEO, **OneUptime** (`Infra.tsx`),
+Utilizadores, Suporte Live, Enviar Email.
+
+## Pages Functions (`functions/_lib/app.ts`)
+
+- `POST /api/v1/admin/email/send` — envio de email via **Resend** (multipart, anexo
+  até 10MB; `reply_to` default `business@konecta.pt`).
+- Outras rotas admin internas (ver `functions/`).
+
+## Notas verificadas
+
+- O `VITE_INTERNAL_API_SECRET` (build) **tem de ser igual** ao `INTERNAL_API_SECRET`
+  dos workers, senão as chamadas a `eu-esims.konecta.pt` dão **401**.
+- Build de produção: `tsc -b && vite build` (usar `tsc -b` para validar localmente).
+- O mapa (`TopCountriesMap`) pinta por `country_code`; `getTopCountries` deriva o
+  código pelo nome quando falta (fallback `world-countries` + aliases).

@@ -4,8 +4,8 @@
   "name": "Konecta Documentation",
   "colors": {
     "primary": "#FF2781",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "light": "#FF5A8A",
+    "dark": "#FA5068"
   },
   "favicon": {
     "light": "/images/LOGOROSA.svg",
@@ -14,27 +14,39 @@
   "navigation": {
     "pages": [
       {
-        "group": "Getting Started",
+        "group": "Introdução",
         "pages": [
           "index",
-          "quickstart"
+          "architecture",
+          "deployment",
+          "status-monitoring",
+          "cleanup"
+        ]
+      },
+      {
+        "group": "Backends (Cloudflare Workers)",
+        "pages": [
+          "repos/api-backend",
+          "repos/api-esims",
+          "repos/api-payments"
+        ]
+      },
+      {
+        "group": "Frontends",
+        "pages": [
+          "repos/admin-dashboard",
+          "repos/site",
+          "repos/payments-web",
+          "repos/app"
+        ]
+      },
+      {
+        "group": "Infraestrutura",
+        "pages": [
+          "repos/load-balancer"
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/images/LOGOROSA.svg",
@@ -44,14 +56,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "Status",
+        "href": "https://status.statuskonecta.pt/"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "label": "konecta.pt",
+      "href": "https://konecta.pt/"
     }
   },
   "contextual": {
@@ -60,17 +72,12 @@
       "view",
       "chatgpt",
       "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
+      "mcp"
     ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "website": "https://konecta.pt"
     }
   }
 }

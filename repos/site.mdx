@@ -1,0 +1,27 @@
+---
+title: "konecta.pt (website)"
+description: "Loja e site público — React/Vite."
+---
+
+<Info>
+`konecta.pt` · package `vite_react_shadcn_ts` · React + Vite (SPA) + Supabase.
+Cloudflare Pages. i18n **pt/en** (`useI18n`, `lp()`, componente `<L>`).
+</Info>
+
+## Estrutura
+
+- `src/pages/` — Home, Destinations, PlanDetails/EsimDetail, Help, Blog/BlogPost,
+  Business, VPN, Contact, About, Login, Register, Profile, Esims, Status.
+- `src/components/` — layout (Header/Footer), `ChatWidget`, secções da home,
+  `DeviceCheck`, `PaymentMarks`, etc.
+- `src/lib/api.ts` — `request()` para `api.konecta.pt`, `VAT_RATE`/`withVat`/`grossEur`,
+  `planTier`, `listCountries`.
+
+## Factos verificados
+
+- **Login só por Google** (o botão Apple foi removido de Login/Register).
+- Footer tem link **"Estado dos serviços"** → `https://status.statuskonecta.pt/` (externo).
+- Preços mostrados **com IVA 23%** (`grossEur`).
+- `ChatWidget` — id de visitante `web_...` **sem hífens** (o backend rejeita hífens);
+  usa realtime Supabase + polling fallback.
+- `HeroSection` — autocomplete de países; navegação com `lp(countryPath(...))`.

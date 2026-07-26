@@ -1,0 +1,27 @@
+---
+title: "API-PAYMENTS (konecta-payments)"
+description: "Pagamentos Stripe e MB WAY — do código."
+---
+
+<Info>
+Worker `konecta-payments` · rota `payments.konecta.pt/*` · Hono + Stripe.
+</Info>
+
+## Rotas (reais, de src/)
+
+| Método | Rota |
+|---|---|
+| `GET` | `/health` |
+| `GET` | `/config` |
+| `POST` | `/api/v1/stripe/create-checkout-session` |
+| `POST` | `/api/v1/stripe/create-payment` |
+| `POST` | `/api/v1/stripe/mbway/create-payment-intent` |
+| `GET` | `/api/v1/stripe/payment/:id/status` |
+| `POST` | `/api/v1/webhooks/stripe` |
+
+## Notas
+
+- **MB WAY** via Stripe Payment Intents (`mbway/create-payment-intent`).
+- O webhook do Stripe existe aqui **e** no [API-BACKEND](/repos/api-backend)
+  (`/api/v1/webhooks/stripe`) — confirmar qual é o ativo em produção
+  (candidato a clarificar/limpar).

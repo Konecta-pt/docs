@@ -1,0 +1,30 @@
+---
+title: "Monitorização & Status"
+description: "OneUptime (externo) como fonte de estado e incidentes."
+---
+
+## OneUptime
+
+O estado dos serviços e os incidentes/comunicados vivem no **OneUptime** (externo à
+Cloudflare, para sobreviver a uma queda da CF).
+
+- **Status page pública:** `https://status.statuskonecta.pt/`
+  - Link no footer do [site](/repos/site) → "Estado dos serviços".
+- **Admin:** a página **OneUptime** (`admin-dashboard/src/pages/Infra.tsx`) embebe a
+  status page num iframe + botão para o dashboard OneUptime.
+
+<Note>
+Os **comunicados** são emitidos **diretamente no dashboard do OneUptime** — a API do
+OneUptime é um recurso pago e por agora não é usada. A tab de comunicados foi
+removida do admin.
+</Note>
+
+## Serviços monitorizados (statuskonecta.pt)
+
+`api-backend`, `api-esims`, `api-payments`, `admin` — os fallbacks Railway (ver
+[Arquitetura](/architecture)).
+
+## Worker de status antigo (a desativar)
+
+Antes do OneUptime, existia o worker `konecta-status` (`status.konecta.pt`, em
+`API-BACKEND/workers-status`). Está **substituído** — ver [Limpeza](/cleanup).

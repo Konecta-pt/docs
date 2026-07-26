@@ -1,0 +1,62 @@
+---
+title: "Deploys, Branches & Ambientes"
+description: "Modelo de branches, CI e como cada repo chega a produção."
+---
+
+## Modelo de branches
+
+Todos os repositórios usam:
+
+- **`main` = produção**
+- **`dev` = teste / integração**
+
+Fluxo: trabalhar em `dev` → `push` → o **check de CI** corre → abrir **PR `dev → main`**
+→ com o check verde, **merge** → produção.
+
+<Info>
+Cada repo tem um workflow `.github/workflows/ci.yml` que corre em PRs para `main`
+(instala, `tsc`/build). A **proteção do `main`** (exigir PR + check) configura-se no
+GitHub: *Settings → Branches → ruleset*.
+</Info>
+
+## Como cada tipo de repo deploya
+
+### Cloudflare Workers (API-BACKEND, API-ESIMS, API-PAYMENTS)
+Deploy por `wrangler` (não por git):
+
+```bash
+cd <repo>/workers
+wrangler deploy            # produção
+wrangler deploy --env dev  # ambiente de teste (se configurado em wrangler.toml)
+```
+
+- Secrets por ambiente: `wrangler secret put NOME [--env dev]`.
+- Crons e rotas são definidos no `wrangler.toml`.
+
+### Cloudflare Pages (admin-dashboard, konecta.pt, payments-konecta-web)
+Build automático por push:
+
+- **Production branch = `main`** → domínio de produção.
+- Qualquer outra branch (ex.: `dev`) → **preview deployment** com URL próprio (ambiente de teste).
+- Variáveis de ambiente separadas: **Production** vs **Preview**.
+
+### Railway (LB e fallbacks)
+Deploy por push do repo conectado. Variáveis de ambiente no painel Railway.
+
+## Secrets partilhados importantes
+
+- `INTERNAL_API_SECRET` — segredo partilhado entre **API-BACKEND** e **API-ESIMS**
+  (o backend chama o worker de eSIMs com `Authorization: Bearer <secret>`). No
+  admin, o equivalente é `VITE_INTERNAL_API_SECRET` (tem de ser **igual**).
+- `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- `STRIPE_SECRET_KEY`, `RESEND_API_KEY`.
+
+<Warning>
+Se rodares o `INTERNAL_API_SECRET`, tens de o atualizar em **todos** os
+consumidores (worker de eSIMs, API-BACKEND e admin Pages) ou partes o fulfillment.
+</Warning>
+
+## Verificar builds localmente
+
+- Workers: `npx tsc --noEmit` (ou o script `typecheck`).
+- Admin/site: **`tsc -b`** (o build de produção usa isto — mais estrito que `tsc --noEmit`).

@@ -1,0 +1,65 @@
+---
+title: "API-ESIMS (konecta-esims)"
+description: "Integração com o fornecedor e ciclo de vida do eSIM — do código."
+---
+
+<Info>
+Worker `konecta-esims` · rota `eu-esims.konecta.pt/*` · Hono + Supabase + provider
+**esimcard.com** (e integração **CMLink** low-cost). Rotas em `src/index.ts`
+(`app.get/post`). Crons: `0 6,18 * * *` e `*/15 * * * *`.
+</Info>
+
+## Rotas (reais, de src/index.ts)
+
+| Método | Rota | Notas |
+|---|---|---|
+| `GET` | `/health` | health-check |
+| `POST` | `/api/v1/esim/generate` | compra/gera o eSIM no provider |
+| `GET` | `/api/v1/esim/:id/usage` | uso de dados (live). Dispara sync de estado |
+| `GET` | `/api/v1/esim/:id/details` | detalhe do provider. Dispara sync de estado |
+| `GET` | `/api/v1/esims` | lista os eSIMs da conta reseller |
+| `GET` | `/api/v1/balance` | saldo da conta reseller |
+| `GET` | `/api/v1/packages` | pacotes |
+| `GET` | `/api/v1/package/:id` | detalhe de pacote |
+| `GET` | `/api/v1/packages/countries` | países |
+| `GET` | `/api/v1/packages/continents` | continentes |
+| `GET` | `/api/v1/packages/continent/:id` | pacotes por continente |
+| `GET` | `/api/v1/prices/compare` | comparação de preços |
+| `GET` | `/api/v1/prices/compare-providers` | comparação entre fornecedores |
+| `POST` | `/api/v1/prices/sync` | sincroniza preços |
+| `POST` | `/api/v1/sync-products` | sincroniza produtos (requer `SYNC_SECRET`) |
+| `POST` | `/api/v1/device/check-compatibility` | verifica compatibilidade de dispositivo |
+| `POST` | `/api/v1/track` | tracking de visitantes |
+| `POST` | `/webhooks/:provider` | webhook do provider |
+
+### CMLink (low-cost)
+
+| Método | Rota |
+|---|---|
+| `POST` | `/api/v1/cmlink/login` |
+| `POST` | `/api/v1/cmlink/token` |
+| `GET` | `/api/v1/cmlink/token/status` |
+| `GET` | `/api/v1/cmlink/countries` |
+| `GET` | `/api/v1/cmlink/plans` |
+| `GET` | `/api/v1/cmlink/pool` |
+| `POST` | `/api/v1/cmlink/pool/accounts` |
+| `POST` | `/api/v1/cmlink/purchase` |
+| `POST` | `/api/v1/cmlink/order-delivered` |
+| `GET` | `/api/v1/cmlink/order/:code` |
+
+## Sincronização automática do estado do eSIM
+
+Implementada em `src/index.ts` (`syncEsimFromProvider`, `runEsimStatusSync`):
+
+- Lê o estado real do provider em **`data.sim.status`** e os pacotes em
+  **`data.in_use_packages` / `data.completed_packages`** (o provider **aninha** — ler
+  `data.status` no topo devolve vazio).
+- Regras: `Installed`/pacote ativado/dados consumidos → **active**; esgotado
+  (`remaining ≤ 0`) ou fora de validade → **expired**; nunca regride para pending.
+- Gatilhos: **on-demand** ao abrir `/details` + **cron `*/15`** que varre `pending` e `active`.
+
+## Auth
+
+Rotas (exceto `PUBLIC_PATHS`) exigem `Authorization: Bearer <INTERNAL_API_SECRET>`.
+O mesmo segredo é usado pelo [API-BACKEND](/repos/api-backend) e pelo
+[admin](/repos/admin-dashboard) (`VITE_INTERNAL_API_SECRET`).

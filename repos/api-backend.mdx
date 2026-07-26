@@ -1,0 +1,106 @@
+---
+title: "API-BACKEND (konecta-api)"
+description: "API principal — extraída do código (API-BACKEND/workers/src)."
+---
+
+<Info>
+Worker `konecta-api` · rota `api.konecta.pt/*` · Hono + Supabase. Rotas montadas
+em `src/index.ts` sob `basePath('/api/v1')`. Tabela abaixo gerada a partir de
+`src/routes/*.ts` — **55 rotas reais**.
+</Info>
+
+## Mount points (src/index.ts)
+
+| Prefixo | Router | Auth |
+|---|---|---|
+| `/api/v1/konecta` | `publicRoutes` | pública |
+| `/api/v1/konecta/auth` | `authRoutes` | pública |
+| `/api/v1/konecta` | `protectedRoutes` | JWT (utilizador) |
+| `/api/v1/admin` | `adminRoutes` | `authMiddleware` + `adminMiddleware` |
+| `/api/v1/webhooks` | `webhookRoutes` | assinatura |
+
+## Públicas (`publicRoutes`)
+
+| Método | Rota |
+|---|---|
+| `GET` | `/api/v1/konecta/campaigns` |
+| `GET` | `/api/v1/konecta/esim-product/:id` |
+| `GET` | `/api/v1/konecta/list_esims` |
+| `GET` | `/api/v1/konecta/list_esims/countries` |
+| `GET` | `/api/v1/konecta/notifications/health` |
+| `GET` | `/api/v1/konecta/payments/session/:session_id` |
+| `GET` | `/api/v1/konecta/chat/messages/:conversation_id` |
+| `POST` | `/api/v1/konecta/chat/conversation` |
+| `POST` | `/api/v1/konecta/chat/message` |
+| `POST` | `/api/v1/konecta/device/check-compatibility` |
+| `POST` | `/api/v1/konecta/promo/validate` |
+| `POST` | `/api/v1/konecta/admin/push-send` |
+
+## Auth (`authRoutes`)
+
+| Método | Rota |
+|---|---|
+| `POST` | `/api/v1/konecta/auth/oauth` |
+| `POST` | `/api/v1/konecta/auth/refresh` |
+| `POST` | `/api/v1/konecta/auth/logout` |
+
+## Autenticadas — utilizador (`protectedRoutes`)
+
+| Método | Rota |
+|---|---|
+| `GET` | `/api/v1/konecta/user-profile` |
+| `POST` | `/api/v1/konecta/user-profile` |
+| `PUT` | `/api/v1/konecta/user-profile` |
+| `GET` | `/api/v1/konecta/esim` |
+| `GET` | `/api/v1/konecta/esim/stats` |
+| `GET` | `/api/v1/konecta/esim/:id/live` |
+| `GET` | `/api/v1/konecta/esim/:id/topup-options` |
+| `POST` | `/api/v1/konecta/esim/:id/install-info` |
+| `GET` | `/api/v1/konecta/order/history` |
+| `GET` | `/api/v1/konecta/order/:id` |
+| `POST` | `/api/v1/konecta/order/checkout` |
+| `POST` | `/api/v1/konecta/order/:id/confirm` |
+| `POST` | `/api/v1/konecta/payment/stripe/checkout` |
+| `GET` | `/api/v1/konecta/invoices` |
+| `GET` | `/api/v1/konecta/invoices/:id` |
+| `GET` | `/api/v1/konecta/notifications` |
+| `GET` | `/api/v1/konecta/notifications/unread-count` |
+| `PUT` | `/api/v1/konecta/notifications/:id/read` |
+| `PUT` | `/api/v1/konecta/notifications/read-all` |
+| `DELETE` | `/api/v1/konecta/notifications/:id` |
+| `GET` | `/api/v1/konecta/referral` |
+| `POST` | `/api/v1/konecta/referral/apply` |
+| `GET` | `/api/v1/konecta/reviews` |
+| `POST` | `/api/v1/konecta/reviews` |
+| `GET` | `/api/v1/konecta/chat/conversation` |
+| `GET` | `/api/v1/konecta/chat/conversation/:id/messages` |
+| `POST` | `/api/v1/konecta/chat/conversation/:id/messages` |
+
+## Admin (`adminRoutes`)
+
+| Método | Rota |
+|---|---|
+| `GET` | `/api/v1/admin/users` |
+| `GET` | `/api/v1/admin/orders` |
+| `GET` | `/api/v1/admin/esims` |
+| `PUT` | `/api/v1/admin/esim/:id/status` |
+| `GET` | `/api/v1/admin/stats` |
+| `GET` | `/api/v1/admin/stats/countries` |
+| `GET` | `/api/v1/admin/stats/revenue` |
+| `GET` | `/api/v1/admin/chat/conversations` |
+| `GET` | `/api/v1/admin/chat/conversations/:id/messages` |
+| `POST` | `/api/v1/admin/chat/conversations/:id/messages` |
+| `PUT` | `/api/v1/admin/chat/conversations/:id/status` |
+| `POST` | `/api/v1/admin/run-migration` |
+
+## Webhooks
+
+| Método | Rota |
+|---|---|
+| `POST` | `/api/v1/webhooks/stripe` |
+
+## Segundo worker no mesmo repo
+
+`API-BACKEND/workers-status` → worker **`konecta-status`** (`status.konecta.pt`,
+cron `*/5 * * * *`). **Nota de limpeza:** foi substituído pelo OneUptime — candidato
+a desativar (ver [Monitorização](/status-monitoring)).

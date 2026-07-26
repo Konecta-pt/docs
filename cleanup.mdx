@@ -1,0 +1,52 @@
+---
+title: "Auditoria & Limpeza"
+description: "Achados verificados no código/infra — candidatos a limpar."
+---
+
+Lista **verificada** (não especulativa). Cada item foi confirmado nesta análise.
+
+## Contrato Frontend ↔ API: limpo ✅
+
+Cruzadas as **21** chamadas `/api/v1/...` dos frontends (konecta.pt, admin, App)
+com as **rotas definidas** nas 3 APIs (+ Pages Functions do admin):
+**0 chamadas apontam para rotas inexistentes**. Sem gralhas de rota nos clientes.
+
+## Candidatos a limpar
+
+<AccordionGroup>
+  <Accordion title="Webhook do Stripe duplicado">
+    `POST /api/v1/webhooks/stripe` existe no **API-BACKEND** e no **API-PAYMENTS**.
+    Confirmar qual é o ativo em produção e remover/redirecionar o outro.
+  </Accordion>
+  <Accordion title="Worker konecta-status substituído pelo OneUptime">
+    `API-BACKEND/workers-status` (`status.konecta.pt`, cron `*/5`) foi substituído
+    pela status page do **OneUptime**. Candidato a **desativar**.
+  </Accordion>
+  <Accordion title="Branches obsoletas">
+    `develop` (API-BACKEND, API-ESIMS, API-PAYMENTS, App),
+    `feat/cloudflare-workers-migration` (3 APIs) e `dependabot/...` (konecta.pt).
+    Apagar as que já não servem — manter só `main` + `dev`.
+  </Accordion>
+  <Accordion title="payments-konecta-web com build falhado">
+    Apareceu "Build failed" no OneUptime. Corrigir o build antes de promover.
+  </Accordion>
+  <Accordion title="Vulnerabilidades Dependabot">
+    Reportadas em vários repos (ex.: konecta.pt, API-BACKEND). Tratar via
+    `npm audit fix` numa branch ou ligar Dependabot security updates.
+  </Accordion>
+  <Accordion title="LB — placeholders e domínio isolado">
+    O `Caddyfile` tinha upstreams `SUBSTITUIR` (corrigido localmente, por publicar).
+    Falta migrar o LB para um **domínio isolado** (`lb.statuskonecta.pt`) e pôr os
+    fallbacks `api-esims` (503) e `api-backend` (000) saudáveis.
+  </Accordion>
+</AccordionGroup>
+
+## Limitações conhecidas (não são bugs)
+
+- **Mapa da Overview:** 209/210 países pintam. O **Kosovo** não pinta por ausência
+  no mapa base (`world-atlas`), não por gralha.
+
+## Como reproduzir a auditoria de rotas
+
+Extrair rotas definidas (`grep` de `app.get/post`, `*.Routes.*`) e cruzar com os
+literais `/api/v1/...` dos frontends. 0 sem correspondência = contrato limpo.

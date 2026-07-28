@@ -22,6 +22,30 @@ Worker `konecta-payments` · rota `payments.konecta.pt/*` · Hono + Stripe.
 ## Notas
 
 - **MB WAY** via Stripe Payment Intents (`mbway/create-payment-intent`).
-- O webhook do Stripe existe aqui **e** no [API-BACKEND](/repos/api-backend)
-  (`/api/v1/webhooks/stripe`) — confirmar qual é o ativo em produção
-  (candidato a clarificar/limpar).
+- Este worker **nunca confia no valor que o cliente envia**. Vai buscar o preço da
+  encomenda ao `BACKEND_API_URL` (`https://api.konecta.pt`) e é esse que cobra.
+- O `CORS_ORIGINS` é ao mesmo tempo a lista de origens do browser aceites **e** a
+  allowlist dos URLs de redirect que se podem passar ao Stripe.
+- `APPLE_PAY_MERCHANT_ID` e `APPLE_PAY_DOMAIN` estão declarados no tipo `Env` mas
+  não estão configurados em produção.
+
+## O webhook do Stripe
+
+Este é o **único** endpoint registado na Stripe. Confirmado na conta `Konecta`
+(`acct_1SIyeIDhlarY9Su6`, modo live):
+
+| | |
+| --- | --- |
+| URL | `https://payments.konecta.pt/api/v1/webhooks/stripe` |
+| Eventos | `payment_intent.succeeded` · `payment_intent.payment_failed` · `charge.refunded` |
+| Estado | `enabled` |
+
+A assinatura é validada com `constructEventAsync` e o `STRIPE_WEBHOOK_SECRET`.
+Depois de validar, este worker chama o `WEBHOOK_CALLBACK_URL`
+(`https://api.konecta.pt/api/v1/webhooks/stripe`) com o header `X-Webhook-Secret`.
+
+<Note>
+O `/api/v1/webhooks/stripe` do [API-BACKEND](/repos/api-backend) tem o mesmo nome
+mas **não é um webhook da Stripe** — é o passo interno seguinte desta cadeia. Não
+são duplicados e não há nada a remover.
+</Note>

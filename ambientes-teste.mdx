@@ -13,6 +13,15 @@ Todos os repos do Konecta têm exatamente dois ambientes: **produção** (branch
 que é trabalho em curso vive em `dev` até estar pronto para ir para produção
 via PR.
 
+<Warning>
+**Estado real a 28/07/2026:** o ambiente de dev descrito nesta página ainda não
+existe. Na conta Cloudflare há **três** Workers — `konecta-api`, `konecta-esims` e
+`konecta-payments`, todos de produção. Os `-dev` nunca foram criados, e os três
+projetos Pages têm o ambiente **Preview sem variáveis nenhumas**. O que está abaixo
+é o modelo a montar; até lá, os URLs `-dev` devolvem erro. Ver
+[Secrets & variáveis](/secrets).
+</Warning>
+
 ## URLs de cada serviço
 
 | Serviço | Produção | Dev / Testes |
@@ -21,15 +30,14 @@ via PR.
 | API-ESIMS | `eu-esims.konecta.pt` (custom domain) · `konecta-esims.konecta-pt.workers.dev` | `konecta-esims-dev.konecta-pt.workers.dev` |
 | API-PAYMENTS | `payments.konecta.pt` (custom domain) · `konecta-payments.konecta-pt.workers.dev` | `konecta-payments-dev.konecta-pt.workers.dev` |
 | admin-dashboard | `admin.konecta.pt` | `dev.konecta-admin.pages.dev` |
-| konecta.pt (site) | `konecta.pt` | `dev.<nome-do-projeto>.pages.dev` |
-| payments-konecta-web | `pay.konecta.pt` | `dev.konecta-payments.pages.dev` |
+| konecta.pt (site) | `konecta.pt` | `dev.konecta-global-connect.pages.dev` |
+| payments-konecta-web | `pay.konecta.pt` | `dev.payments-konecta-web.pages.dev` |
 
 <Note>
-O nome exato do projeto Cloudflare Pages do site `konecta.pt` não está fixado
-em nenhum ficheiro do repositório (o `package.json` tem o nome genérico do
-template `vite_react_shadcn_ts`). Confirma o nome real no dashboard Cloudflare
-Pages (Workers & Pages → o projeto do site) para saberes o URL de preview
-exato — vai ser `dev.<nome-do-projeto>.pages.dev`.
+Os nomes dos projetos Pages são `konecta-admin`, `konecta-pt` e
+`payments-konecta-web`. O do site tem o domínio `pages.dev` herdado de um nome
+antigo — `konecta-global-connect.pages.dev` — e é esse que aparece nos URLs de
+preview, não `konecta-pt`.
 </Note>
 
 Os três Workers de dev (`-dev`) **não têm rota custom** (`*.konecta.pt`) — só
@@ -119,6 +127,18 @@ git pull origin dev
 git merge main
 git push origin dev
 ```
+
+## Montar o ambiente de dev (por fazer)
+
+Enquanto os passos abaixo não estiverem feitos, testar em dev não é possível:
+
+1. Criar cada Worker de dev: `cd workers && wrangler deploy --env development`.
+   O `[env.development]` já existe nos três `wrangler.toml`.
+2. Repetir todos os secrets com `--env development` (não há herança — ver abaixo).
+3. Preencher as variáveis do ambiente **Preview** dos três projetos Pages no
+   dashboard Cloudflare. Neste momento estão vazias nos três.
+4. Confirmar o nome real do projeto Pages do site (`konecta-pt`, com o domínio
+   `konecta-global-connect.pages.dev`) para saber o URL de preview.
 
 ## Secrets no ambiente de dev
 

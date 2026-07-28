@@ -4,10 +4,37 @@ description: "Integração com o fornecedor e ciclo de vida do eSIM — do códi
 ---
 
 <Info>
-Worker `konecta-esims` · rota `eu-esims.konecta.pt/*` · Hono + Supabase + provider
-**esimcard.com** (e integração **CMLink** low-cost). Rotas em `src/index.ts`
-(`app.get/post`). Crons: `0 6,18 * * *` e `*/15 * * * *`.
+Worker `konecta-esims` · rota `eu-esims.konecta.pt/*` · Hono + Supabase. Rotas em
+`src/index.ts` (`app.get/post`). Crons: `0 6,18 * * *` (scraping de preços) e
+`*/15 * * * *` (sync de estado dos eSIMs).
 </Info>
+
+## Providers
+
+| Provider | Estado | Onde |
+| --- | --- | --- |
+| **esimcard.com** | **em produção** — é o único que vende | API reseller, `ESIMCARD_TOKEN` |
+| **CMLink** | integrado mas **em pausa** | `src/providers/cmlink.ts` |
+
+Em produção a tabela `esim_products` só tem produtos `esimcard`. O CMLink existe em
+código e tem rotas próprias, mas não alimenta o catálogo nem vende.
+
+<Note>
+Existiu um terceiro provider, **eSIM Access**, removido em julho de 2026 por não
+estar a ser usado. O helper de câmbio USD→EUR que vivia nesse módulo continua a ser
+preciso (o esimcard e o CMLink cotam em dólares) e passou para
+`src/pricing.ts` → `getUsdToEur()`.
+</Note>
+
+## Bindings e KV
+
+| Binding | Para quê |
+| --- | --- |
+| `CACHE_KV` | token do esimcard e taxa de câmbio (`fx_usd_eur`, TTL 12h) |
+| `CMLINK_SESSION` · `CMLINK_PRICES` · `CMLINK_ORDERS` | sessão, preços e encomendas do CMLink |
+| `BROWSER` | Cloudflare Browser Rendering — login automático no CMLink |
+
+`[placement] mode = "smart"` coloca o worker perto da base de dados.
 
 ## Rotas (reais, de src/index.ts)
 
@@ -25,27 +52,50 @@ Worker `konecta-esims` · rota `eu-esims.konecta.pt/*` · Hono + Supabase + prov
 | `GET` | `/api/v1/packages/continents` | continentes |
 | `GET` | `/api/v1/packages/continent/:id` | pacotes por continente |
 | `GET` | `/api/v1/prices/compare` | comparação de preços |
-| `GET` | `/api/v1/prices/compare-providers` | comparação entre fornecedores |
+| `GET` | `/api/v1/prices/compare-providers` | esimcard vs CMLink para um país, tudo convertido para EUR |
 | `POST` | `/api/v1/prices/sync` | sincroniza preços |
-| `POST` | `/api/v1/sync-products` | sincroniza produtos (requer `SYNC_SECRET`) |
+| `POST` | `/api/v1/sync-products` | sincroniza o catálogo (requer `SYNC_SECRET`) |
 | `POST` | `/api/v1/device/check-compatibility` | verifica compatibilidade de dispositivo |
 | `POST` | `/api/v1/track` | tracking de visitantes |
 | `POST` | `/webhooks/:provider` | webhook do provider |
 
-### CMLink (low-cost)
+### CMLink (low-cost) — em pausa
 
-| Método | Rota |
-|---|---|
-| `POST` | `/api/v1/cmlink/login` |
-| `POST` | `/api/v1/cmlink/token` |
-| `GET` | `/api/v1/cmlink/token/status` |
-| `GET` | `/api/v1/cmlink/countries` |
-| `GET` | `/api/v1/cmlink/plans` |
-| `GET` | `/api/v1/cmlink/pool` |
-| `POST` | `/api/v1/cmlink/pool/accounts` |
-| `POST` | `/api/v1/cmlink/purchase` |
-| `POST` | `/api/v1/cmlink/order-delivered` |
-| `GET` | `/api/v1/cmlink/order/:code` |
+<Warning>
+O CMLink está **em pausa**. As rotas existem e o código está no repositório, mas não
+alimenta o catálogo nem processa vendas. Documentado aqui para quando for retomado.
+</Warning>
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `POST` | `/api/v1/cmlink/login` | login automático com Browser Rendering (abaixo) |
+| `POST` | `/api/v1/cmlink/token` | guarda um token obtido à mão |
+| `GET` | `/api/v1/cmlink/token/status` | validade do token em `CMLINK_SESSION` |
+| `GET` | `/api/v1/cmlink/countries` | |
+| `GET` | `/api/v1/cmlink/plans` | |
+| `GET` | `/api/v1/cmlink/pool` | estado do pool de contas |
+| `POST` | `/api/v1/cmlink/pool/accounts` | adiciona conta ao pool |
+| `PATCH` | `/api/v1/cmlink/pool/accounts/:id` | atualiza uma conta do pool |
+| `POST` | `/api/v1/cmlink/purchase` | |
+| `POST` | `/api/v1/cmlink/order-delivered` | marca a encomenda como entregue |
+| `GET` | `/api/v1/cmlink/order/:code` | |
+
+#### Login automático e captcha
+
+O portal do CMLink não tem API de autenticação: só um formulário protegido por um
+**captcha de slider da Aliyun**. O worker resolve-o assim:
+
+1. Abre o portal com **Cloudflare Browser Rendering** (binding `BROWSER`, Puppeteer).
+2. Entrega o captcha ao **2captcha.com** (`TWOCAPTCHA_KEY`), que devolve a solução.
+3. Guarda o token de sessão em `CMLINK_SESSION` (KV) para os pedidos seguintes.
+
+Como uma conta CMLink tem limites, `src/account-pool.ts` mantém um **pool de contas**
+e roda entre elas.
+
+<Note>
+Isto depende de um serviço pago externo (2captcha) e de o portal não mudar o
+formulário. É frágil por natureza — parte do motivo por que está em pausa.
+</Note>
 
 ## Sincronização automática do estado do eSIM
 
@@ -58,8 +108,37 @@ Implementada em `src/index.ts` (`syncEsimFromProvider`, `runEsimStatusSync`):
   (`remaining ≤ 0`) ou fora de validade → **expired**; nunca regride para pending.
 - Gatilhos: **on-demand** ao abrir `/details` + **cron `*/15`** que varre `pending` e `active`.
 
+## Preços
+
+`src/pricing.ts` tem as duas funções que decidem o preço final:
+
+- **`retailPrice(costCents)`** — markup por escalões sobre o custo do provider:
+  ×1,5 abaixo de €5, ×1,25 acima, com piso de €0,99 (que também limpa o mínimo de
+  €0,50 do Stripe). A migration de backfill usa a **fórmula idêntica** — se mudares
+  uma, muda a outra.
+- **`getUsdToEur(env)`** — taxa ao vivo da frankfurter.dev, em cache no `CACHE_KV`
+  por 12h, com último recurso fixo em `0.92`. Nunca lança: uma API de câmbio em
+  baixo não pode partir um sync de preços.
+
+Um produto com `price_is_custom = true` na base de dados não é esmagado pelo sync
+(trigger `preserve_custom_price`). Ver [Base de dados](/database).
+
 ## Auth
 
 Rotas (exceto `PUBLIC_PATHS`) exigem `Authorization: Bearer <INTERNAL_API_SECRET>`.
 O mesmo segredo é usado pelo [API-BACKEND](/repos/api-backend) e pelo
 [admin](/repos/admin-dashboard) (`VITE_INTERNAL_API_SECRET`).
+
+O `POST /api/v1/sync-products` é a exceção: usa o `SYNC_SECRET`, que tem de bater
+certo com o `ESIMS_SYNC_SECRET` das Pages Functions do admin.
+
+## Dívida conhecida
+
+<Warning>
+`npx tsc --noEmit` neste worker devolve **41 erros**, todos no código de Browser
+Rendering do CMLink (`document`/`window` dentro dos callbacks de `page.evaluate`, e
+`cmlink.ts` a importar um `Env` que o `index.ts` não exporta). Como o
+`.github/workflows/ci.yml` corre exatamente esse comando, **qualquer PR `dev → main`
+neste repositório fica com o check vermelho e não faz merge** até isto ser
+resolvido.
+</Warning>

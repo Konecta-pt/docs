@@ -26,9 +26,9 @@ divide-se em **8 repositórios**, alojados maioritariamente em **Cloudflare**
 
 - **Backends:** Cloudflare Workers + [Hono](https://hono.dev), TypeScript.
 - **Frontends:** React + Vite (site, admin) e Next.js (checkout web), Cloudflare Pages.
-- **Base de dados:** Supabase (Postgres) — o service role é usado nos Workers/admin.
+- **Base de dados:** [Supabase (Postgres)](/database) — o service role é usado nos Workers/admin.
 - **Pagamentos:** Stripe + MB WAY.
-- **Fornecedor de eSIM:** esimcard.com (e integração CMLink como low-cost).
+- **Fornecedor de eSIM:** esimcard.com (o CMLink está integrado mas [em pausa](/repos/api-esims)).
 - **Monitorização/estado:** [OneUptime](/status-monitoring) (externo à Cloudflare).
 
 ## Princípios

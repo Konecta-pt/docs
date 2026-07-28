@@ -52,15 +52,53 @@ Código morto confirmado (0 usos — debug/test/old/exemplos):
 - Sem componentes órfãos. Só o `tsconfig.tsbuildinfo` (lixo).
 
 ## Backends & Infra 🔵
-- **`konecta-status`** (`API-BACKEND/workers-status`, `status.konecta.pt`, cron `*/5`) —
-  substituído pelo **OneUptime** → desativar/remover.
-- **Webhook Stripe duplicado**: `/api/v1/webhooks/stripe` no API-BACKEND **e** API-PAYMENTS
-  → confirmar o ativo, remover o outro.
+- **`konecta-status`** — o worker já **não existe** na Cloudflare. Falta só apagar a
+  pasta `API-BACKEND/workers-status` do repositório.
+- **Rate limiting desligado**: o `rateLimiter()` do API-BACKEND deixa passar tudo
+  porque o `UPSTASH_REDIS_URL`/`TOKEN` não estão configurados. Ou se configura o
+  Upstash, ou se remove o middleware e as vars `RATE_LIMIT_*` que sugerem proteção
+  que não existe.
+- **`RESEND_API_KEY` em falta** no projeto Pages do admin → o envio de emails do
+  dashboard devolve 503.
+- **`ESIMACCESS_ACCESS_CODE`** continua configurado no `konecta-esims` depois de o
+  provider ter sido removido → `wrangler secret delete ESIMACCESS_ACCESS_CODE`.
+- **`CLOUDFLARE_API_TOKEN`** guardado no projeto Pages do admin sem ser usado pelo
+  código das Functions → confirmar e remover.
+- **Variáveis com tab no nome** no projeto Pages do site: `VITE_API_URL\t` e
+  `VITE_SUPABASE_URL\t` nunca são lidas pelo Vite.
 - **Branches obsoletas**: `develop` (API-BACKEND, API-ESIMS, API-PAYMENTS, App),
   `feat/cloudflare-workers-migration` (3 APIs), `dependabot/*` (konecta.pt) → apagar.
 - **Vulnerabilidades Dependabot** em vários repos → `npm audit fix` / Dependabot updates.
 - **LB**: migrar para domínio isolado (`lb.statuskonecta.pt`); sanar fallbacks
   `api-esims` (503) e `api-backend` (000).
+
+## Base de dados 🔴
+
+Verificado contra o projeto Supabase real (ver [Base de dados](/database)):
+
+- **Três tabelas consultadas em produção não existem**: `competitor_prices`
+  (API-BACKEND, página Concorrência), `visitor_sessions` e `visitor_page_views`
+  (API-ESIMS, `POST /api/v1/track`). As migrations existem por aplicar — ou se
+  aplicam, ou se remove o código.
+- **`API-ESIMS` não passa no typecheck**: 41 erros no código de Browser Rendering do
+  CMLink. Como o `ci.yml` corre `npx tsc --noEmit`, nenhum PR `dev → main` deste
+  repositório consegue fazer merge até estar resolvido.
+- Funções e triggers `*_livemap_*` na base de dados sem nenhum frontend que os use.
+
+## Resolvido — não era problema
+
+- **O webhook Stripe não está duplicado.** Só existe um endpoint registado na
+  Stripe (`payments.konecta.pt/api/v1/webhooks/stripe`, live, 3 eventos). O
+  `/api/v1/webhooks/stripe` do API-BACKEND é o passo interno seguinte, autenticado
+  por `INTERNAL_WEBHOOK_SECRET`. Nada a remover.
+
+## Feito
+
+- **eSIM Access removido** (julho 2026) — não vendia nem alimentava o catálogo. Saiu
+  `providers/esimaccess.ts`, o bloco em `/prices/compare-providers`, o
+  `ESIMACCESS_ACCESS_CODE` e a opção de sync no admin. O helper de câmbio USD→EUR
+  passou para `pricing.ts` (`getUsdToEur`) porque o esimcard e o CMLink precisam
+  dele. Falta apagar o secret: `wrangler secret delete ESIMACCESS_ACCESS_CODE`.
 
 ## Limitações conhecidas (não são bugs)
 - Mapa da Overview: 209/210 países pintam; **Kosovo** não pinta por ausência no mapa base.

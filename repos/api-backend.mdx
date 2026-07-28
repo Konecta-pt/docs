@@ -99,8 +99,30 @@ em `src/index.ts` sob `basePath('/api/v1')`. Tabela abaixo gerada a partir de
 |---|---|
 | `POST` | `/api/v1/webhooks/stripe` |
 
+<Warning>
+Apesar do nome, **isto não recebe eventos da Stripe**. Recebe a chamada interna do
+[API-PAYMENTS](/repos/api-payments), depois de esse worker já ter validado a
+assinatura da Stripe. A autenticação aqui é o header `X-Webhook-Secret` contra o
+`INTERNAL_WEBHOOK_SECRET`, e **falha fechado**: sem o secret configurado todos os
+pedidos levam 401 — e o fulfillment pára, porque é este handler que chama o
+`fulfillPaidOrder()`, que cria o eSIM e a fatura.
+</Warning>
+
 ## Segundo worker no mesmo repo
 
 `API-BACKEND/workers-status` → worker **`konecta-status`** (`status.konecta.pt`,
-cron `*/5 * * * *`). **Nota de limpeza:** foi substituído pelo OneUptime — candidato
-a desativar (ver [Monitorização](/status-monitoring)).
+cron `*/5 * * * *`). **Já não existe na Cloudflare** — foi substituído pelo
+OneUptime e o worker está apagado. O que resta é a pasta no repositório, que pode
+ser removida (ver [Monitorização](/status-monitoring)).
+
+## Bindings e secrets
+
+KV `SESSIONS_KV` e `CACHE_KV`, `[placement] mode = "smart"`. A lista completa de
+secrets, incluindo os que o código espera mas **não estão configurados**, está em
+[Secrets & variáveis](/secrets).
+
+<Warning>
+O rate limiting depende do Upstash Redis, que não está configurado — o middleware
+deixa passar tudo. As variáveis `RATE_LIMIT_REQUESTS`/`RATE_LIMIT_WINDOW_SECONDS`
+não têm efeito nenhum neste momento.
+</Warning>

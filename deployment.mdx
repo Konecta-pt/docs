@@ -106,11 +106,15 @@ git push origin dev
 
 ## Secrets partilhados importantes
 
+O inventário completo, serviço a serviço, está em [Secrets & variáveis](/secrets).
+Os que partem coisas quando ficam dessincronizados:
+
 - `INTERNAL_API_SECRET` — segredo partilhado entre **API-BACKEND** e **API-ESIMS**
   (o backend chama o worker de eSIMs com `Authorization: Bearer <secret>`). No
   admin, o equivalente é `VITE_INTERNAL_API_SECRET` (tem de ser **igual**).
+- `SYNC_SECRET` (API-ESIMS) ↔ `ESIMS_SYNC_SECRET` (Pages Functions do admin).
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
-- `STRIPE_SECRET_KEY`, `RESEND_API_KEY`.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`.
 - `CLOUDFLARE_API_TOKEN` — usado pelo GitHub Actions para fazer `wrangler deploy`
   nos 3 repos de Workers (configurado como secret do repositório no GitHub, não
   do Cloudflare).

@@ -1,0 +1,170 @@
+---
+title: "Base de dados"
+description: "Supabase Postgres — tabelas, enums, RLS e funções. Verificado contra o projeto real."
+---
+
+<Info>
+Projeto Supabase **`Konecta_API`** (`lbxlkcozptlvgijgboul`) · Postgres 17 · região
+`eu-west-1`. É a **única** base de dados: os três Workers e o admin escrevem todos
+aqui, sempre com a **service role key**.
+</Info>
+
+## Como os serviços acedem
+
+| Quem | Chave | Porquê |
+| --- | --- | --- |
+| API-BACKEND, API-ESIMS | `SUPABASE_SERVICE_ROLE_KEY` | ignora RLS; é a fronteira de autorização real |
+| admin-dashboard | `VITE_SUPABASE_SERVICE_ROLE_KEY` | leitura direta no browser |
+| App, site | `EXPO_PUBLIC_SUPABASE_ANON_KEY` / `VITE_SUPABASE_ANON_KEY` | só o que RLS permitir |
+
+<Warning>
+A service role key do admin vai no **bundle do browser** (`VITE_*`). Quem abrir o
+DevTools em `admin.konecta.pt` fica com uma chave que ignora RLS em toda a base de
+dados. O Cloudflare Access limita quem chega à página, não o que faz a chave depois
+de extraída.
+</Warning>
+
+## Tabelas
+
+### Contas e sessões
+
+| Tabela | Colunas-chave | Notas |
+| --- | --- | --- |
+| `users` | `id` varchar PK, `email`, `role` (`user_role`), `is_active`, `email_verified` | tabela de contas própria, não `auth.users` |
+| `user_profiles` | `id`, `user_id`, `first_name`, `last_name`, `phone`, `country`, `language` (d. `pt`), `email`, `referral_code` | `referral_code` gerado à primeira chamada de `GET /referral` |
+| `user_security` | `two_factor_enabled`, `two_factor_secret`, `two_factor_backup_codes[]`, `mfa_enabled`, `last_2fa_verification`, `phone_verified`, `email_verified` | segredos 2FA em claro na coluna |
+| `sessions` | `token_hash`, `expires_at`, `is_revoked` | |
+| `refresh_tokens` | `token_hash`, `session_id`, `device_uuid`, `expires_at`, `is_revoked` | expiração por `REFRESH_TOKEN_EXPIRY_DAYS` (30) |
+| `user_devices` | `device_uuid`, `model`, `os_name`, `os_version`, `carrier`, `expo_push_token` | um registo por dispositivo da App |
+
+### Catálogo e vendas
+
+| Tabela | Colunas-chave | Notas |
+| --- | --- | --- |
+| `esim_products` | `id` varchar PK, `country`, `country_code`, `provider`, `data_amount_mb`, `validity_days`, `price_cents`, `cost_cents`, `provider_package_id` UNIQUE, `unlimited`, `package_type` (d. `DATA-ONLY`), `provider_meta` jsonb, `price_is_custom` | catálogo sincronizado do provider |
+| `orders` | `id` varchar PK, `user_id`, `esim_product_id`, `price_cents`, `original_price_cents`, `status` (`order_status`), `payment_method`, `payment_intent_id`, `session_id`, `promo_code_id`, `refunded_cents` | |
+| `payments` | `payment_intent_id`, `amount_cents`, `status` (`payment_status`), `gateway_response` jsonb, `refunded_cents` | |
+| `invoices` | `id` d. `inv_<uuid>`, `invoice_number`, `amount_cents`, `tax_amount_cents`, `status` (`invoice_status`), `pdf_path`, `sent_at`, `paid_at` | criadas no `fulfillPaidOrder` |
+| `esims` | `id` varchar PK, `iccid`, `msisdn`, `qr_code`, `activation_code`, `status` (`esim_status`), `data_limit_mb`, `data_used_mb`, `provider_esim_id` | |
+| `esim_events` | `esim_id`, `event_type`, `detail`, `metadata` jsonb | trilho de auditoria do ciclo de vida |
+
+`price_is_custom` protege um preço editado à mão de ser esmagado pelo próximo sync
+(trigger `preserve_custom_price`).
+
+### Marketing e apoio
+
+| Tabela | Colunas-chave | Notas |
+| --- | --- | --- |
+| `promo_codes` | `code`, `discount_type` (**`percentage` \| `fixed`**), `discount_value`, `min_order_cents`, `max_uses`, `uses_count`, `expires_at` | `fixed` = cêntimos; `percentage` = 0-100 |
+| `referral_uses` | `referrer_user_id`, `referred_user_id`, `referral_code`, `discount_cents` (d. 300) | um utilizador só pode ser referido uma vez |
+| `reviews` | `user_id`, `esim_id`, `order_id`, `rating` smallint, `comment` | |
+| `campaigns` | `title`, `badge`, `badge_color` (d. `#E71A5F`), `image_url`, `esim_product_id`, `country_code`, `starts_at`, `ends_at`, `sort_order` | banners da home |
+| `chat_conversations` | `user_id`, `status` (d. `open`), `last_message`, `unread_admin`, `unread_user` | suporte live |
+| `chat_messages` | `conversation_id`, `sender_type`, `content`, `read_at` | |
+
+### Notificações
+
+| Tabela | Papel |
+| --- | --- |
+| `user_notification_inbox` | inbox in-app. **`user_id` é `uuid`** — todas as outras tabelas usam `varchar` para o mesmo id |
+| `user_notifications` | preferências por tipo/canal |
+| `notification_history` | histórico de push (30 dias), com `expo_receipt_ids[]` e contagem de dispositivos |
+
+### Dispositivos e operação
+
+`esim_compatibility` (314 linhas, catálogo de modelos), `device_compatibility_logs`
+(analítica das verificações), `device_esim_compatibility`, `roaming_rates`,
+`status_incidents` (comunicados), `admin_audit_log` (`admin_email`, `action`,
+`resource`, `amount_cents`).
+
+<Note>
+Há **dois** trilhos de auditoria do admin, e só um fica na base de dados: o
+frontend escreve em `admin_audit_log` via Supabase (best-effort,
+`src/lib/stripe.ts` — se falhar, a ação continua), enquanto o `audit()` das Pages
+Functions só emite uma linha JSON para os logs do Worker. Uma ação feita fora do
+frontend não deixa registo na tabela.
+</Note>
+
+`spatial_ref_sys` é da extensão PostGIS, não é nossa.
+
+## Enums
+
+| Enum | Valores |
+| --- | --- |
+| `order_status` | `pending` · `paid` · `processing` · `completed` · `failed` · `cancelled` · `refunded` · `partially_refunded` |
+| `payment_status` | `pending` · `succeeded` · `failed` · `cancelled` · `refunded` · `partially_refunded` |
+| `esim_status` | `pending` · `active` · `expired` · `cancelled` |
+| `invoice_status` | `draft` · `sent` · `paid` · `overdue` · `cancelled` |
+| `payment_method` | `stripe` · `mbway` · `apple_pay` |
+| `user_role` | `user` · `admin` |
+
+## Funções (RPC)
+
+| Função | Para quê |
+| --- | --- |
+| `claim_promo_use(promo_id)` → boolean | reserva um uso de forma atómica; devolve `false` se já esgotou |
+| `increment_promo_uses(promo_id)` | incremento simples (anterior ao `claim_promo_use`) |
+| `current_profile_ids()` | ids de perfil do utilizador autenticado — base das políticas RLS |
+| `expire_esims()`, `expire_esims_job()`, `handle_expired_esims()` | expiração de eSIMs |
+| `cleanup_old_notifications()` | limpa o histórico com mais de 30 dias |
+| `get_esims_status(filter_status)` | listagem filtrada por estado |
+
+Triggers: `preserve_custom_price`, `set_activation_dates`, `update_updated_at_column`,
+`update_notification_history_updated_at`.
+
+<Note>
+Há um grupo de funções `*_livemap_*` e triggers de coordenadas
+(`sync_lat_lng`, `sync_marker_position`, `full_sync_esim_location`,
+`freeze_origin_country_on_activate`) de um mapa em tempo real que **não está
+implementado** em nenhum frontend. Não lhes mexer sem confirmar.
+</Note>
+
+## RLS
+
+RLS está **ativo em todas as tabelas** do `public` (exceto `spatial_ref_sys`), mas
+nove delas têm **zero políticas** — o que significa que a chave anon não lê nem
+escreve lá nada:
+
+`orders` · `payments` · `invoices` · `esims` · `sessions` · `refresh_tokens` ·
+`campaigns` · `user_notification_inbox` · `admin_audit_log`
+
+<Warning>
+Uma tabela com RLS ligado e zero políticas está **fechada**, não aberta. Qualquer
+endpoint que lhe toque tem de usar a **service role**. Foi assim que o
+`pay.konecta.pt` começou a dar 404 na sessão pública de `orders`: o endpoint usava
+a chave anon. Endpoints públicos que leiam estas tabelas usam service role.
+</Warning>
+
+As restantes têm políticas ancoradas em `current_profile_ids()` (o utilizador só vê
+as suas linhas) ou são leitura pública (`esim_products`, `esim_compatibility`,
+`status_incidents`, `roaming_rates`).
+
+## Migrations
+
+Vivem em `API-BACKEND/migrations/*.sql` e são aplicadas **à mão** — não há
+ferramenta de migração nem histórico no Supabase. Ler o ficheiro antes de correr;
+não há rollback automático.
+
+As duas de RLS são faseadas: `rls_phase1_safe.sql` (segura, porque os backends usam
+service role) e `rls_phase2_user_tables.sql` (precisa de políticas por email, ainda
+por aplicar).
+
+<Warning>
+Nunca correr `DELETE`, `TRUNCATE` ou `DROP` nesta base de dados sem validação
+explícita. Serve o site e a App em produção ao mesmo tempo.
+</Warning>
+
+## Tabelas em falta
+
+Três tabelas são consultadas por código em produção mas **não existem** na base de
+dados — qualquer chamada que lá chegue devolve erro do PostgREST:
+
+| Tabela | Quem a consulta |
+| --- | --- |
+| `competitor_prices` | API-BACKEND (página Concorrência do admin) |
+| `visitor_sessions` | API-ESIMS, `POST /api/v1/track` |
+| `visitor_page_views` | API-ESIMS, `POST /api/v1/track` |
+
+Existe `API-BACKEND/migrations/create_competitor_prices.sql` e
+`create_visitor_sessions.sql` por aplicar. Ou se aplicam, ou se remove o código que
+as usa.

@@ -18,8 +18,10 @@
         "pages": [
           "index",
           "architecture",
+          "database",
           "deployment",
           "ambientes-teste",
+          "secrets",
           "status-monitoring",
           "cleanup"
         ]

@@ -1,6 +1,6 @@
 ---
 title: "admin-dashboard (konecta-admin)"
-description: "Painel de administração — React/Vite + Pages Functions."
+description: "Painel de administração — React/Vite + Pages Functions, com a API Stripe própria."
 ---
 
 <Info>
@@ -10,27 +10,125 @@ Functions** (Hono) em `functions/`. Protegido por **Cloudflare Access**.
 
 ## Estrutura
 
-- `src/pages/` — páginas do painel (ver navegação em `src/components/Layout.tsx`).
+- `src/pages/` — páginas do painel (navegação em `src/components/Layout.tsx`).
 - `src/lib/api.ts` — acesso a dados: **Supabase** (service role) + chamadas aos
   workers (`ESIMS_URL`, `Authorization: Bearer VITE_INTERNAL_API_SECRET`).
-- `functions/` — Pages Functions sob `/api/v1/admin/*`, com `csrfGuard()`
-  (exige `X-Konecta-Admin: 1` + Origin) e `cfAccessAuth()`.
+- `src/lib/stripe.ts` — cliente da API admin (abaixo) e escrita best-effort em
+  `admin_audit_log`.
+- `functions/` — Pages Functions montadas em `functions/api/[[path]].ts`, com a app
+  Hono em `functions/_lib/app.ts`.
 
-## Páginas (src/pages)
+## Páginas (`src/pages`)
 
-Overview (mapa de países), Pedidos, Pagamentos, Stripe, Faturas, eSIMs, Produtos,
-Campanhas, Promo Codes, Concorrência, Auditoria SEO, **OneUptime** (`Infra.tsx`),
-Utilizadores, Suporte Live, Enviar Email.
+Overview (mapa de países), Orders, Payments, **Stripe**, Invoices, ESIMs, Products,
+Campaigns, PromoCodes, Competitors, SEO, Infra (OneUptime), Customers, Support
+(chat live), Emails, Notifications, Referrals, Reviews, Settings.
 
-## Pages Functions (`functions/_lib/app.ts`)
+## A API admin (`functions/_lib/app.ts`)
 
-- `POST /api/v1/admin/email/send` — envio de email via **Resend** (multipart, anexo
-  até 10MB; `reply_to` default `business@konecta.pt`).
-- Outras rotas admin internas (ver `functions/`).
+É uma API **same-origin**: não emite CORS permissivo, por isso o browser bloqueia
+qualquer leitura cross-origin. Tudo o que está sob `/api/v1/admin` passa por duas
+camadas, por esta ordem:
+
+1. **`csrfGuard()`** — `OPTIONS` devolve sempre 403; escritas exigem `Origin` (ou
+   `Referer`) igual a `ALLOWED_ORIGIN` (d. `https://admin.konecta.pt`) **e** o
+   header `X-Konecta-Admin: 1`; o corpo tem de ser `application/json` (máx. 64 KB)
+   ou `multipart/form-data` (máx. 10 MB, só para anexos de email).
+2. **`cfAccessAuth()`** — valida o JWT do Cloudflare Access (assinatura, emissor e
+   `aud`) e confirma que o email está em `ADMIN_EMAILS` ou no domínio
+   `ALLOWED_EMAIL_DOMAIN`.
+
+Os erros saem sempre no mesmo envelope (`{ success: false, error, code }`) e os 5xx
+são genéricos — nunca vai stack trace para o browser.
+
+### Rotas sem autenticação
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `GET` | `/api/health` | health-check |
+| `GET` | `/api/whoami` | diagnóstico: valida assinatura, emissor e email mas **não** o `aud`, para leres o `aud` real do token e configurares o `CF_ACCESS_AUD`. Não executa ações. |
+
+### Stripe — conta e saldo
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/config` | modo (`live`/`test`, deduzido do prefixo da chave), conta, moeda, `charges_enabled`, `payouts_enabled` |
+| `GET` | `/api/v1/admin/balance` | |
+| `GET` | `/api/v1/admin/balance-transactions` | paginado |
+| `GET` | `/api/v1/admin/payouts` | |
+| `GET` | `/api/v1/admin/events` | |
+
+### Stripe — pagamentos e reembolsos
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/payments` | `?query=` aceita um id `pi_...` (retrieve direto) ou um `order_id` (procura nos metadados) |
+| `GET` | `/api/v1/admin/payments/:id` | |
+| `POST` | `/api/v1/admin/payments/:id/capture` | `amount_to_capture` opcional |
+| `POST` | `/api/v1/admin/payments/:id/cancel` | `cancellation_reason` ∈ `duplicate`, `fraudulent`, `requested_by_customer`, `abandoned` |
+| `POST` | `/api/v1/admin/refunds` | exige `payment_intent`; `amount` opcional (parcial); `reason` ∈ `duplicate`, `fraudulent`, `requested_by_customer` |
+| `GET` | `/api/v1/admin/refunds` | |
+
+O reembolso guarda `metadata.refunded_by` com o email do admin e usa uma
+`idempotencyKey` nova por pedido — isso torna seguros os retries automáticos do SDK
+sem impedir um segundo reembolso intencional. A proteção contra duplo clique está
+**só na UI**.
+
+### Stripe — clientes e disputas
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/customers` · `/customers/:id` | |
+| `GET` | `/api/v1/admin/disputes` · `/disputes/:id` | |
+| `POST` | `/api/v1/admin/disputes/:id` | submeter prova |
+| `POST` | `/api/v1/admin/disputes/:id/close` | **aceita a disputa — irreversível** |
+
+### Stripe — catálogo
+
+| Método | Rota |
+| --- | --- |
+| `GET` `POST` | `/api/v1/admin/products` |
+| `PATCH` | `/api/v1/admin/products/:id` |
+| `GET` `POST` | `/api/v1/admin/prices` |
+| `GET` `POST` | `/api/v1/admin/payment-links` |
+| `POST` | `/api/v1/admin/payment-links/:id/deactivate` |
+
+### Operações Konecta
+
+| Método | Rota | Notas |
+| --- | --- | --- |
+| `POST` | `/api/v1/admin/esim-products/sync/:provider?` | dispara o sync do catálogo no worker de eSIMs (só `esimcard`). Autentica-se com `ESIMS_SYNC_SECRET`, **server-only** — nunca com prefixo `VITE_`. |
+| `POST` | `/api/v1/admin/email/send` | envio via **Resend**, `multipart/form-data`, anexo até 10 MB. De `Konecta <noreply@konecta.pt>`, `reply_to` d. `business@konecta.pt`, embrulhado no template da marca. |
+
+## Variáveis de ambiente
+
+**Pages Functions (server-only, nunca chegam ao browser):**
+`CF_ACCESS_AUD` (obrigatória), `CF_ACCESS_TEAM_DOMAIN` (d. `konectapt.cloudflareaccess.com`),
+`ADMIN_EMAILS`, `ALLOWED_EMAIL_DOMAIN`, `ALLOWED_ORIGIN`, `STRIPE_SECRET_KEY`,
+`ESIMS_SYNC_SECRET`, `ESIMS_SYNC_URL`, `RESEND_API_KEY`, `DISABLE_AUTH`.
+
+**Build do SPA (`VITE_*`, ficam no bundle do browser):**
+`VITE_API_URL`, `VITE_ESIMS_URL`, `VITE_INTERNAL_API_SECRET`, `VITE_STRIPE_ADMIN_URL`,
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_SERVICE_ROLE_KEY`,
+`VITE_TRACK_URL`, `VITE_PAGESPEED_KEY`, `VITE_VAT_RATE`.
+
+<Warning>
+Tudo o que leva o prefixo `VITE_` é **compilado para dentro do JavaScript servido ao
+browser** — incluindo `VITE_SUPABASE_SERVICE_ROLE_KEY` e `VITE_INTERNAL_API_SECRET`.
+Quem abrir o DevTools em `admin.konecta.pt` fica com uma chave que ignora RLS em
+toda a base de dados e com o segredo interno dos workers. O Cloudflare Access
+controla quem chega à página, não o que essas chaves fazem depois de extraídas.
+Segredos novos entram como variáveis das Pages Functions, sem `VITE_`.
+</Warning>
+
+<Note>
+`DISABLE_AUTH=true` só salta a autenticação quando `ENV=development`. Em produção
+não tem efeito.
+</Note>
 
 ## Notas verificadas
 
-- O `VITE_INTERNAL_API_SECRET` (build) **tem de ser igual** ao `INTERNAL_API_SECRET`
+- `VITE_INTERNAL_API_SECRET` (build) **tem de ser igual** ao `INTERNAL_API_SECRET`
   dos workers, senão as chamadas a `eu-esims.konecta.pt` dão **401**.
 - Build de produção: `tsc -b && vite build` (usar `tsc -b` para validar localmente).
 - O mapa (`TopCountriesMap`) pinta por `country_code`; `getTopCountries` deriva o

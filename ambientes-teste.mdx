@@ -13,25 +13,38 @@ Todos os repos do Konecta têm exatamente dois ambientes: **produção** (branch
 que é trabalho em curso vive em `dev` até estar pronto para ir para produção
 via PR.
 
-<Warning>
-**Estado real a 28/07/2026:** o ambiente de dev descrito nesta página ainda não
-existe. Na conta Cloudflare há **três** Workers — `konecta-api`, `konecta-esims` e
-`konecta-payments`, todos de produção. Os `-dev` nunca foram criados, e os três
-projetos Pages têm o ambiente **Preview sem variáveis nenhumas**. O que está abaixo
-é o modelo a montar; até lá, os URLs `-dev` devolvem erro. Ver
-[Secrets & variáveis](/secrets).
-</Warning>
-
 ## URLs de cada serviço
 
-| Serviço | Produção | Dev / Testes |
-|---|---|---|
-| API-BACKEND | `api.konecta.pt` (custom domain) · `konecta-api.konecta-pt.workers.dev` | `konecta-api-dev.konecta-pt.workers.dev` |
-| API-ESIMS | `eu-esims.konecta.pt` (custom domain) · `konecta-esims.konecta-pt.workers.dev` | `konecta-esims-dev.konecta-pt.workers.dev` |
-| API-PAYMENTS | `payments.konecta.pt` (custom domain) · `konecta-payments.konecta-pt.workers.dev` | `konecta-payments-dev.konecta-pt.workers.dev` |
-| admin-dashboard | `admin.konecta.pt` | `dev.konecta-admin.pages.dev` |
-| konecta.pt (site) | `konecta.pt` | `dev.konecta-global-connect.pages.dev` |
-| payments-konecta-web | `pay.konecta.pt` | `dev.payments-konecta-web.pages.dev` |
+Cada API de dev tem **dois endereços, de propósito diferente**:
+
+| Serviço | Produção | Dev — humanos (com Access) | Dev — worker→worker |
+|---|---|---|---|
+| API-BACKEND | `api.konecta.pt` | `api-dev.konecta.pt` | `konecta-api-dev.konecta-pt.workers.dev` |
+| API-ESIMS | `eu-esims.konecta.pt` | `eu-esims-dev.konecta.pt` | `konecta-esims-dev.konecta-pt.workers.dev` |
+| API-PAYMENTS | `payments.konecta.pt` | `payments-dev.konecta.pt` | `konecta-payments-dev.konecta-pt.workers.dev` |
+| admin-dashboard | `admin.konecta.pt` | `dev.konecta-admin.pages.dev` | — |
+| konecta.pt (site) | `konecta.pt` | `dev.konecta-global-connect.pages.dev` | — |
+| payments-konecta-web | `pay.konecta.pt` | `dev.payments-konecta-web.pages.dev` | — |
+
+### Porquê dois endereços
+
+O Cloudflare Access protege **hostnames da zona `konecta.pt`**. Isso dá-te o portal
+de login em `api-dev.konecta.pt` quando abres o URL no browser — mas o Access
+responde a *qualquer* pedido sem cookie de sessão com um redirect para o login,
+incluindo os que vêm de outro Worker.
+
+Por isso os workers de dev falam entre si pelos URLs `*.workers.dev`, que ficam fora
+do alcance do Access e continuam protegidos pelo `INTERNAL_API_SECRET` — exatamente
+o que o [LB](/repos/load-balancer) já faz em produção. É por isso que o
+`ESIM_SERVICE_URL` do `konecta-api-dev` aponta para `workers.dev` e não para
+`eu-esims-dev.konecta.pt`.
+
+<Warning>
+Pela mesma razão, um frontend de dev que chame a API a partir do browser tem de usar
+o URL **`workers.dev`**. Se apontares o `VITE_API_URL` do preview para
+`api-dev.konecta.pt`, cada `fetch` leva um 302 para a página de login e falha no
+CORS.
+</Warning>
 
 <Note>
 Os nomes dos projetos Pages são `konecta-admin`, `konecta-pt` e
@@ -40,9 +53,18 @@ antigo — `konecta-global-connect.pages.dev` — e é esse que aparece nos URLs
 preview, não `konecta-pt`.
 </Note>
 
-Os três Workers de dev (`-dev`) **não têm rota custom** (`*.konecta.pt`) — só
-são acessíveis pelo URL `*.workers.dev`. Os três projetos Pages usam o mesmo
-domínio `pages.dev`, só muda o subdomínio (`dev.` em vez do domínio custom).
+## Cloudflare Access nos subdomínios de dev
+
+As três APIs de dev têm uma aplicação Access `self_hosted`, sessão de 24h, com uma
+política `allow` para `konecta.pt@gmail.com`, `rodrigoferreira@konecta.pt` e
+`joaosantos@konecta.pt` — a mesma forma do `admin.konecta.pt` e do
+`docs.konecta.pt`.
+
+| Hostname | AUD do Access |
+|---|---|
+| `api-dev.konecta.pt` | `f4d4fae63deacd8ffbafa8888eead7c9…` |
+| `eu-esims-dev.konecta.pt` | `10bbc9177a8bf9ed3945c7de25a751c8…` |
+| `payments-dev.konecta.pt` | `07e548f0eba45bc93c65983eed72bbd3…` |
 
 ## Workflow diário — passo a passo
 
@@ -61,30 +83,26 @@ mandá-la para produção.
    git commit -m "descrição da alteração"
    git push origin dev
    ```
-4. **Se é um repo de Pages** (admin-dashboard, konecta.pt, payments-konecta-web):
-   o preview aparece **automaticamente** em `dev.<projeto>.pages.dev` alguns
-   minutos depois do push — não precisas de fazer mais nada.
-5. **Se é um repo de Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS): o push
-   para `dev` **não faz deploy nenhum**. Para atualizar o ambiente de testes,
-   corre manualmente:
-   ```bash
-   cd workers
-   wrangler deploy --env development
-   ```
-6. Testa a tua alteração no URL de dev correspondente (tabela acima).
-7. Quando estiver tudo a funcionar como esperado, abre um PR `dev → main` no
+4. O deploy para dev é **automático em todos os repos**:
+   - **Pages** (admin-dashboard, konecta.pt, payments-konecta-web) — a Cloudflare
+     cria o preview em `dev.<projeto>.pages.dev`.
+   - **Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS) — o
+     `deploy-dev.yml` corre em `dev` e faz `wrangler deploy --env development`.
+5. Testa a tua alteração no URL de dev correspondente (tabela acima).
+6. Quando estiver tudo a funcionar como esperado, abre um PR `dev → main` no
    GitHub (ver comando abaixo).
-8. O CI (`typecheck`) corre automaticamente no PR. Sem check verde, o GitHub
+7. O CI (`typecheck`) corre automaticamente no PR. Sem check verde, o GitHub
    não deixa fazer merge (branch protection no `main`).
-9. Depois de aprovado e com CI verde, faz merge do PR. Isso dispara o
+8. Depois de aprovado e com CI verde, faz merge do PR. Isso dispara o
    **deploy automático para produção** (GitHub Actions nos Workers; build
    nativo da Cloudflare nas Pages).
 
-<Warning>
-No merge para `main`, os **Workers** fazem deploy automático de **produção**,
-não de dev. O ambiente de dev dos Workers só é atualizado quando corres
-`wrangler deploy --env development` manualmente — nunca por push ou por merge.
-</Warning>
+<Note>
+Cada ambiente tem o seu workflow: `deploy-dev.yml` corre no push para `dev` e faz
+`wrangler deploy --env development`; `deploy-prod.yml` corre no push para `main` e
+faz `wrangler deploy`. Nos dois, o job de deploy só arranca depois de o `typecheck`
+passar — um erro de tipos impede tanto o dev como a produção.
+</Note>
 
 ## Comandos de referência
 
@@ -98,13 +116,11 @@ git add .
 git commit -m "descrição da alteração"
 git push origin dev
 
-# Deploy manual do ambiente de testes (Workers apenas — Pages é automático)
+# O deploy de dev é automático no push para `dev`. Estes comandos são só para
+# emergência ou para o primeiro arranque, e exigem `wrangler login`.
 cd workers
-wrangler deploy --env development   # ex.: API-BACKEND
-# repete o mesmo comando dentro de API-ESIMS/workers e API-PAYMENTS/workers
-
-# Deploy manual para produção (normalmente feito pelo CI, só usar em emergência)
-wrangler deploy
+wrangler deploy --env development   # ambiente de testes
+wrangler deploy                     # produção
 
 # Adicionar/atualizar um secret no ambiente de testes
 wrangler secret put NOME_SECRET --env development
@@ -128,17 +144,28 @@ git merge main
 git push origin dev
 ```
 
-## Montar o ambiente de dev (por fazer)
+## Estado da montagem
 
-Enquanto os passos abaixo não estiverem feitos, testar em dev não é possível:
+Feito (28/07/2026):
 
-1. Criar cada Worker de dev: `cd workers && wrangler deploy --env development`.
-   O `[env.development]` já existe nos três `wrangler.toml`.
-2. Repetir todos os secrets com `--env development` (não há herança — ver abaixo).
-3. Preencher as variáveis do ambiente **Preview** dos três projetos Pages no
-   dashboard Cloudflare. Neste momento estão vazias nos três.
-4. Confirmar o nome real do projeto Pages do site (`konecta-pt`, com o domínio
-   `konecta-global-connect.pages.dev`) para saber o URL de preview.
+- `[env.development]` nos três `wrangler.toml`, com o custom domain, as vars e
+  **KV próprio** (`konecta-sessions-dev`, `konecta-cache-dev`, `cmlink-*-dev`) para
+  o dev não escrever no cache nem nas sessões de produção.
+- **Sem crons em dev.** O `[triggers]` é herdado do ambiente de topo, por isso o
+  `wrangler.toml` do API-ESIMS põe `crons = []` explicitamente — senão o dev
+  duplicava o scraping de preços e o sync de estados contra a mesma base de dados.
+- Um workflow por ambiente: `deploy-dev.yml` (branch `dev`) e `deploy-prod.yml`
+  (branch `main`), a substituir o antigo `deploy-workers.yml`.
+- As três aplicações Cloudflare Access.
+
+Por fazer, e precisa dos valores dos secrets:
+
+1. Fazer push para `dev` num dos repos → o GitHub Actions cria o worker.
+2. Configurar os secrets desse worker com `--env development` (não há herança —
+   ver abaixo).
+3. Preencher as variáveis do ambiente **Preview** dos três projetos Pages, que
+   estão vazias, apontando `VITE_API_URL`/`NEXT_PUBLIC_API_URL` para o URL
+   `workers.dev` do `konecta-api-dev`.
 
 ## Secrets no ambiente de dev
 
@@ -165,19 +192,19 @@ autenticar-se — repete sempre o comando com `--env development`.
 
 ## Pages vs. Workers — a diferença mais importante
 
-| | Push para `dev` | Preciso de fazer algo manual? |
+| | Push para `dev` | Quem publica |
 |---|---|---|
-| **Pages** (admin-dashboard, konecta.pt, payments-konecta-web) | Cloudflare cria preview automático em `dev.<projeto>.pages.dev` | Não |
-| **Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS) | Nada acontece — o worker `-dev` fica com o código que lá estava | Sim — `wrangler deploy --env development` |
+| **Pages** (admin-dashboard, konecta.pt, payments-konecta-web) | preview em `dev.<projeto>.pages.dev` | integração nativa Cloudflare ↔ GitHub |
+| **Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS) | `--env development` | GitHub Actions (`deploy-dev.yml`) |
 
-Isto é a fonte mais comum de confusão: fazer push para `dev` num repo de
-Workers e esperar ver a alteração refletida no URL `-dev.workers.dev`
-automaticamente. Nos Workers, o push só atualiza o **branch**; o **deploy**
-do ambiente de testes é sempre manual.
+A diferença que resta é **onde** falha quando falha: nas Pages, o build aparece no
+dashboard Cloudflare; nos Workers, no separador Actions do GitHub. Um erro de
+typecheck bloqueia o deploy de dev dos Workers da mesma forma que bloqueia o de
+produção.
 
 <Info>
-No merge para `main`, os Workers têm deploy automático via GitHub Actions
-(`.github/workflows/deploy-workers.yml`) — mas isso só publica **produção**.
-Ver [Deploys, Branches & Ambientes](/deployment) para o detalhe completo do
-CI/CD e da proteção do branch `main`.
+Até 28/07/2026 o push para `dev` nos repos de Workers não fazia deploy nenhum, e o
+ambiente de dev só era atualizado com `wrangler deploy --env development` à mão.
+Deixou de ser assim. Ver [Deploys, Branches & Ambientes](/deployment) para o
+detalhe do CI/CD e da proteção do branch `main`.
 </Info>

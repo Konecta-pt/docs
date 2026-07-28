@@ -97,7 +97,7 @@ Verificado contra o projeto Supabase real (ver [Base de dados](/database)):
   passou para `pricing.ts` (`getUsdToEur`) porque o esimcard e o CMLink precisam
   dele. Falta apagar o secret: `wrangler secret delete ESIMACCESS_ACCESS_CODE`.
 - **Typecheck do API-ESIMS reposto a zero** (28/07/2026) — eram 39 erros que
-  bloqueavam o `ci.yml` e o `deploy-workers.yml`, obrigando a `wrangler deploy`
+  bloqueavam o `ci.yml` e o workflow de deploy, obrigando a `wrangler deploy`
   manual. Corrigido com `lib: ["ESNext", "DOM"]` no `tsconfig.json`,
   `querySelector<HTMLInputElement>` e a remoção de um import morto em `cmlink.ts`.
   O deploy automático deste worker volta a funcionar.

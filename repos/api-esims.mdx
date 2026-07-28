@@ -147,7 +147,7 @@ Fora dos callbacks de `page.evaluate()`, não usar APIs de browser.
 
 <Note>
 Este worker teve 39 erros de typecheck até 28/07/2026, o que bloqueava o `ci.yml`
-**e** o `deploy-workers.yml` (o job de deploy tem `needs: typecheck`) — o worker só
+**e** o workflow de deploy (o job tem `needs: typecheck`) — o worker só
 ia a produção com `wrangler deploy` manual. Resolvido com o `lib: ["ESNext", "DOM"]`,
 um `querySelector<HTMLInputElement>` e a remoção de um import morto.
 </Note>

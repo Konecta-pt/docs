@@ -48,25 +48,40 @@ no **plano gratuito**.
 ## Como cada tipo de repo deploya
 
 ### Cloudflare Workers (API-BACKEND, API-ESIMS, API-PAYMENTS)
-**Deploy automático** via GitHub Actions, no merge do PR para `main`:
+**Deploy automático** via GitHub Actions, com **um workflow por ambiente**:
 
-- Workflow `.github/workflows/deploy-workers.yml`, trigger `push` para `main`
-  com `paths: ['workers/**']` — só dispara se o merge tocar código do worker.
-- Corre `typecheck` primeiro; se passar, faz `npx wrangler deploy` usando o
-  secret `CLOUDFLARE_API_TOKEN` configurado no GitHub Actions.
-- Também pode ser disparado manualmente (`workflow_dispatch`) a partir do
+| Ficheiro | Branch | Comando | Vai para |
+| --- | --- | --- | --- |
+| `.github/workflows/deploy-dev.yml` | `dev` | `wrangler deploy --env development` | `*-dev.konecta.pt` |
+| `.github/workflows/deploy-prod.yml` | `main` | `wrangler deploy` | domínio de produção |
+
+- Ambos têm `paths: ['workers/**']` — só disparam se o commit tocar código do worker.
+- Ambos correm `typecheck` primeiro e o job de deploy tem `needs: typecheck`, por
+  isso um erro de tipos bloqueia o ambiente respetivo.
+- Autenticam-se com o secret `CLOUDFLARE_API_TOKEN` configurado no GitHub Actions.
+- Também podem ser disparados manualmente (`workflow_dispatch`) a partir do
   separador Actions no GitHub, sem precisar de push.
 
-Deploy manual local (só para emergências / debugging, fora do fluxo normal):
+<Note>
+O `ci.yml` é outra coisa e continua a fazer falta: corre nos **pull requests** para
+`main` e é o check que a branch protection exige antes do merge. Os `deploy-*.yml`
+correm depois, no push.
+</Note>
 
-```bash
+Deploy manual local (só para emergências / debugging, fora do fluxo normal —
+exige `wrangler login`):
+
+```bash theme={null}
 cd <repo>/workers
-wrangler deploy            # produção
-wrangler deploy --env dev  # ambiente de teste (se configurado em wrangler.toml)
+wrangler deploy                    # produção
+wrangler deploy --env development  # ambiente de teste
 ```
 
-- Secrets por ambiente: `wrangler secret put NOME [--env dev]`.
-- Crons e rotas são definidos no `wrangler.toml`.
+- Secrets por ambiente: `wrangler secret put NOME [--env development]`.
+- Crons e rotas são definidos no `wrangler.toml`. Atenção: os ambientes **não
+  herdam** `vars`, `kv_namespaces`, `routes` nem `browser` do bloco de topo, mas
+  **herdam** `triggers` — por isso o API-ESIMS declara `crons = []` em
+  `[env.development.triggers]`, para o dev não duplicar os crons de produção.
 
 ### Cloudflare Pages (admin-dashboard, konecta.pt, payments-konecta-web)
 Build automático por push, gerido pela integração nativa Cloudflare Pages ↔ GitHub

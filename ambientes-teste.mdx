@@ -1,110 +1,163 @@
 ---
 title: "Ambientes de Teste"
-description: "Como configurar e usar o ambiente de desenvolvimento (`env.development`) nos Workers e os previews automáticos nas Pages."
+description: "Como funciona o ambiente de dev, quais os URLs de cada serviço, e o workflow passo a passo para testar uma alteração antes de ir para produção."
 ---
 
-## Produção vs. desenvolvimento
+## O que é o ambiente de dev?
 
-Cada Cloudflare Worker do Konecta tem dois ambientes possíveis, ambos servidos em
-`workers.dev` (o domínio de produção `*.konecta.pt` só aponta para o ambiente de
-produção):
+É uma **cópia do serviço a correr num URL diferente do de produção**, onde podes
+testar alterações sem afetar utilizadores reais nem dados de produção.
 
-- **Produção** (`[vars]` / ambiente por omissão) — nome do worker sem sufixo,
-  ligado às rotas `*.konecta.pt` definidas no `wrangler.toml`.
-- **Desenvolvimento** (`[env.development]`) — worker separado, com o sufixo
-  `-dev` no nome, sem rota custom — só acessível pelo URL `*.workers.dev`.
+Todos os repos do Konecta têm exatamente dois ambientes: **produção** (branch
+`main`) e **dev/teste** (branch `dev`). Não há `staging` nem `feat/*` — tudo o
+que é trabalho em curso vive em `dev` até estar pronto para ir para produção
+via PR.
 
-Os dois ambientes correm o **mesmo código**, mas com bindings, vars e (potencialmente)
-secrets independentes — dados de teste não tocam nas KV/DB de produção quando os
-bindings de dev apontam para recursos separados.
+## URLs de cada serviço
+
+| Serviço | Produção | Dev / Testes |
+|---|---|---|
+| API-BACKEND | `api.konecta.pt` (custom domain) · `konecta-api.konecta-pt.workers.dev` | `konecta-api-dev.konecta-pt.workers.dev` |
+| API-ESIMS | `eu-esims.konecta.pt` (custom domain) · `konecta-esims.konecta-pt.workers.dev` | `konecta-esims-dev.konecta-pt.workers.dev` |
+| API-PAYMENTS | `payments.konecta.pt` (custom domain) · `konecta-payments.konecta-pt.workers.dev` | `konecta-payments-dev.konecta-pt.workers.dev` |
+| admin-dashboard | `admin.konecta.pt` | `dev.konecta-admin.pages.dev` |
+| konecta.pt (site) | `konecta.pt` | `dev.<nome-do-projeto>.pages.dev` |
+| payments-konecta-web | `pay.konecta.pt` | `dev.konecta-payments.pages.dev` |
 
 <Note>
-O `wrangler.toml` **não herda** `[vars]` para dentro de `[env.development.vars]`.
-Cada var de produção que também é preciso em dev tem de estar duplicada
-explicitamente na secção do ambiente — é por isso que `[env.development.vars]`
-repete `ENV`, `DEFAULT_PROVIDER`, etc.
+O nome exato do projeto Cloudflare Pages do site `konecta.pt` não está fixado
+em nenhum ficheiro do repositório (o `package.json` tem o nome genérico do
+template `vite_react_shadcn_ts`). Confirma o nome real no dashboard Cloudflare
+Pages (Workers & Pages → o projeto do site) para saberes o URL de preview
+exato — vai ser `dev.<nome-do-projeto>.pages.dev`.
 </Note>
 
-## Workers — nome e URL por ambiente
+Os três Workers de dev (`-dev`) **não têm rota custom** (`*.konecta.pt`) — só
+são acessíveis pelo URL `*.workers.dev`. Os três projetos Pages usam o mesmo
+domínio `pages.dev`, só muda o subdomínio (`dev.` em vez do domínio custom).
 
-| Repo | Worker produção | Worker dev | URL produção | URL dev |
-|---|---|---|---|---|
-| API-BACKEND | `konecta-api` | `konecta-api-dev` | `api.konecta.pt` (custom domain) · `konecta-api.konecta-pt.workers.dev` | `konecta-api-dev.konecta-pt.workers.dev` |
-| API-ESIMS | `konecta-esims` | `konecta-esims-dev` | `eu-esims.konecta.pt` (custom domain) · `konecta-esims.konecta-pt.workers.dev` | `konecta-esims-dev.konecta-pt.workers.dev` |
-| API-PAYMENTS | `konecta-payments` | `konecta-payments-dev` | `payments.konecta.pt` (custom domain) · `konecta-payments.konecta-pt.workers.dev` | `konecta-payments-dev.konecta-pt.workers.dev` |
+## Workflow diário — passo a passo
 
-<Info>
-API-BACKEND já tinha `[env.development]` configurado. Os ambientes de
-API-ESIMS e API-PAYMENTS foram adicionados a seguir ao mesmo padrão, para os
-três repos de Workers ficarem consistentes.
-</Info>
+Cenário: queres fazer uma alteração num destes 6 repos, testá-la, e depois
+mandá-la para produção.
 
-## Deploy para o ambiente de dev
+1. **Trabalha sempre a partir do branch `dev`** — nunca diretamente em `main`.
+   ```bash
+   git checkout dev
+   git pull origin dev
+   ```
+2. Faz as tuas alterações normalmente (código, ficheiros, etc.).
+3. Faz commit e push para `dev`:
+   ```bash
+   git add .
+   git commit -m "descrição da alteração"
+   git push origin dev
+   ```
+4. **Se é um repo de Pages** (admin-dashboard, konecta.pt, payments-konecta-web):
+   o preview aparece **automaticamente** em `dev.<projeto>.pages.dev` alguns
+   minutos depois do push — não precisas de fazer mais nada.
+5. **Se é um repo de Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS): o push
+   para `dev` **não faz deploy nenhum**. Para atualizar o ambiente de testes,
+   corre manualmente:
+   ```bash
+   cd workers
+   wrangler deploy --env development
+   ```
+6. Testa a tua alteração no URL de dev correspondente (tabela acima).
+7. Quando estiver tudo a funcionar como esperado, abre um PR `dev → main` no
+   GitHub (ver comando abaixo).
+8. O CI (`typecheck`) corre automaticamente no PR. Sem check verde, o GitHub
+   não deixa fazer merge (branch protection no `main`).
+9. Depois de aprovado e com CI verde, faz merge do PR. Isso dispara o
+   **deploy automático para produção** (GitHub Actions nos Workers; build
+   nativo da Cloudflare nas Pages).
+
+<Warning>
+No merge para `main`, os **Workers** fazem deploy automático de **produção**,
+não de dev. O ambiente de dev dos Workers só é atualizado quando corres
+`wrangler deploy --env development` manualmente — nunca por push ou por merge.
+</Warning>
+
+## Comandos de referência
 
 ```bash
-cd <repo>/workers
-wrangler deploy --env development
-```
+# Trabalhar no branch dev
+git checkout dev
+git pull origin dev
 
-Sem `--env development`, o `wrangler deploy` publica sempre em **produção**.
+# Commit e push para dev
+git add .
+git commit -m "descrição da alteração"
+git push origin dev
+
+# Deploy manual do ambiente de testes (Workers apenas — Pages é automático)
+cd workers
+wrangler deploy --env development   # ex.: API-BACKEND
+# repete o mesmo comando dentro de API-ESIMS/workers e API-PAYMENTS/workers
+
+# Deploy manual para produção (normalmente feito pelo CI, só usar em emergência)
+wrangler deploy
+
+# Adicionar/atualizar um secret no ambiente de testes
+wrangler secret put NOME_SECRET --env development
+
+# Adicionar/atualizar um secret em produção
+wrangler secret put NOME_SECRET
+
+# Ver secrets configurados no ambiente de testes
+wrangler secret list --env development
+
+# Ver logs em tempo real do ambiente de testes
+wrangler tail --env development
+
+# Abrir PR de dev → main quando estiver pronto
+gh pr create --base main --head dev --title "descrição" --body "o que muda"
+
+# Manter dev atualizada depois de um merge para main
+git checkout dev
+git pull origin dev
+git merge main
+git push origin dev
+```
 
 ## Secrets no ambiente de dev
 
-Os secrets (Stripe keys, Supabase service role, etc.) nunca vivem no
-`wrangler.toml` — só `[vars]` (valores não sensíveis) é que ficam lá. Para
-configurar um secret no ambiente de dev de um worker:
+Os secrets (`SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, etc.) **nunca
+vão para o `wrangler.toml`** — só variáveis não sensíveis (`[vars]`) ficam lá.
+Cada ambiente (produção e dev) tem os seus próprios secrets, configurados
+separadamente via CLI, e **não há herança automática** entre eles.
+
+Isto significa que, ao criares um worker de dev pela primeira vez (ou ao
+adicionar um secret novo), tens de o configurar explicitamente em dev também:
 
 ```bash
-wrangler secret put NOME_SECRET --env development
+cd API-BACKEND/workers
+wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env development
+# o wrangler pede o valor de forma segura (não fica no histórico do shell)
 ```
 
 <Warning>
-Secrets **não são partilhados** entre ambientes. Um secret feito com
-`wrangler secret put NOME_SECRET` (sem `--env`) só existe em produção — é
-preciso repetir o comando com `--env development` para o worker de dev
-conseguir arrancar.
+Um secret criado com `wrangler secret put NOME_SECRET` (sem `--env`) só existe
+em **produção**. Se o worker de dev depender desse secret e ele não estiver
+também em `--env development`, o worker de dev vai falhar a arrancar ou a
+autenticar-se — repete sempre o comando com `--env development`.
 </Warning>
 
-## Cloudflare Pages (admin-dashboard, konecta.pt, payments-konecta-web)
+## Pages vs. Workers — a diferença mais importante
 
-As Pages **não usam** `env.development` — o Cloudflare já cria automaticamente
-um **preview deployment** por branch através da integração nativa
-Cloudflare Pages ↔ GitHub (ver [Deploys, Branches & Ambientes](/deployment)).
+| | Push para `dev` | Preciso de fazer algo manual? |
+|---|---|---|
+| **Pages** (admin-dashboard, konecta.pt, payments-konecta-web) | Cloudflare cria preview automático em `dev.<projeto>.pages.dev` | Não |
+| **Workers** (API-BACKEND, API-ESIMS, API-PAYMENTS) | Nada acontece — o worker `-dev` fica com o código que lá estava | Sim — `wrangler deploy --env development` |
 
-- Qualquer push para a branch `dev` fica disponível em
-  `dev.<nome-do-projeto>.pages.dev` (ex.: `dev.konecta-admin.pages.dev`).
-- Variáveis de ambiente **Preview** vs **Production** configuram-se
-  separadamente no dashboard Cloudflare Pages (Settings → Environment variables).
-- Não é preciso nenhuma configuração extra no `wrangler.toml` das Pages para
-  isto funcionar — o preview por branch é automático assim que o projeto está
-  ligado ao repositório GitHub.
+Isto é a fonte mais comum de confusão: fazer push para `dev` num repo de
+Workers e esperar ver a alteração refletida no URL `-dev.workers.dev`
+automaticamente. Nos Workers, o push só atualiza o **branch**; o **deploy**
+do ambiente de testes é sempre manual.
 
-<Note>
-O nome exato do projeto Pages de `konecta.pt` (o site) não está fixado em
-nenhum ficheiro do repositório — confirmar no dashboard Cloudflare Pages.
-`konecta-admin` (admin-dashboard) e `konecta-payments` (payments-konecta-web)
-estão definidos em `[env.production].name` nos respetivos `wrangler.toml`.
-</Note>
-
-## Comandos rápidos de referência
-
-```bash
-# deploy de um Worker para dev
-cd <repo>/workers
-wrangler deploy --env development
-
-# deploy de um Worker para produção
-wrangler deploy
-
-# adicionar/atualizar um secret em dev
-wrangler secret put NOME_SECRET --env development
-
-# adicionar/atualizar um secret em produção
-wrangler secret put NOME_SECRET
-
-# listar deployments de um Worker
-wrangler deployments list --env development
-
-# tail de logs em tempo real (dev)
-wrangler tail --env development
-```
+<Info>
+No merge para `main`, os Workers têm deploy automático via GitHub Actions
+(`.github/workflows/deploy-workers.yml`) — mas isso só publica **produção**.
+Ver [Deploys, Branches & Ambientes](/deployment) para o detalhe completo do
+CI/CD e da proteção do branch `main`.
+</Info>

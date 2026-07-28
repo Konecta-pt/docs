@@ -4,23 +4,25 @@ description: "API principal — extraída do código (API-BACKEND/workers/src)."
 ---
 
 <Info>
-  Worker `konecta-api` · rota `api.konecta.pt/*` · Hono \+ Supabase. Rotas montadas em `src/index.ts` sob `basePath('/api/v1')`. Tabela abaixo gerada a partir de `src/routes/*.ts` — **55 rotas reais**.
+Worker `konecta-api` · rota `api.konecta.pt/*` · Hono + Supabase. Rotas montadas
+em `src/index.ts` sob `basePath('/api/v1')`. Tabela abaixo gerada a partir de
+`src/routes/*.ts` — **55 rotas reais**.
 </Info>
 
 ## Mount points (src/index.ts)
 
 | Prefixo | Router | Auth |
-| --- | --- | --- |
+|---|---|---|
 | `/api/v1/konecta` | `publicRoutes` | pública |
 | `/api/v1/konecta/auth` | `authRoutes` | pública |
 | `/api/v1/konecta` | `protectedRoutes` | JWT (utilizador) |
-| `/api/v1/admin` | `adminRoutes` | `authMiddleware` \+ `adminMiddleware` |
+| `/api/v1/admin` | `adminRoutes` | `authMiddleware` + `adminMiddleware` |
 | `/api/v1/webhooks` | `webhookRoutes` | assinatura |
 
 ## Públicas (`publicRoutes`)
 
 | Método | Rota |
-| --- | --- |
+|---|---|
 | `GET` | `/api/v1/konecta/campaigns` |
 | `GET` | `/api/v1/konecta/esim-product/:id` |
 | `GET` | `/api/v1/konecta/list_esims` |
@@ -37,7 +39,7 @@ description: "API principal — extraída do código (API-BACKEND/workers/src)."
 ## Auth (`authRoutes`)
 
 | Método | Rota |
-| --- | --- |
+|---|---|
 | `POST` | `/api/v1/konecta/auth/oauth` |
 | `POST` | `/api/v1/konecta/auth/refresh` |
 | `POST` | `/api/v1/konecta/auth/logout` |
@@ -45,7 +47,7 @@ description: "API principal — extraída do código (API-BACKEND/workers/src)."
 ## Autenticadas — utilizador (`protectedRoutes`)
 
 | Método | Rota |
-| --- | --- |
+|---|---|
 | `GET` | `/api/v1/konecta/user-profile` |
 | `POST` | `/api/v1/konecta/user-profile` |
 | `PUT` | `/api/v1/konecta/user-profile` |
@@ -77,7 +79,7 @@ description: "API principal — extraída do código (API-BACKEND/workers/src)."
 ## Admin (`adminRoutes`)
 
 | Método | Rota |
-| --- | --- |
+|---|---|
 | `GET` | `/api/v1/admin/users` |
 | `GET` | `/api/v1/admin/orders` |
 | `GET` | `/api/v1/admin/esims` |
@@ -94,5 +96,11 @@ description: "API principal — extraída do código (API-BACKEND/workers/src)."
 ## Webhooks
 
 | Método | Rota |
-| --- | --- |
+|---|---|
 | `POST` | `/api/v1/webhooks/stripe` |
+
+## Segundo worker no mesmo repo
+
+`API-BACKEND/workers-status` → worker **`konecta-status`** (`status.konecta.pt`,
+cron `*/5 * * * *`). **Nota de limpeza:** foi substituído pelo OneUptime — candidato
+a desativar (ver [Monitorização](/status-monitoring)).

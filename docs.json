@@ -12,7 +12,7 @@
     "dark": "/favicon.svg"
   },
   "navigation": {
-    "pages": [
+    "groups": [
       {
         "group": "Introdução",
         "pages": [
@@ -39,33 +39,11 @@
           "repos/payments-web",
           "repos/app"
         ]
-      }
-    ],
-    "groups": [
-      {
-        "group": "Introdução",
-        "pages": [
-          "index",
-          "architecture",
-          "deployment",
-          "status-monitoring"
-        ]
       },
       {
-        "group": "Backends (Cloudflare Workers)",
+        "group": "Infraestrutura",
         "pages": [
-          "repos/api-backend",
-          "repos/api-esims",
-          "repos/api-payments"
-        ]
-      },
-      {
-        "group": "Frontends",
-        "pages": [
-          "repos/admin-dashboard",
-          "repos/site",
-          "repos/payments-web",
-          "repos/app"
+          "repos/load-balancer"
         ]
       }
     ]

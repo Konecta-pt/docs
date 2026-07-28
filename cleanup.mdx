@@ -1,0 +1,66 @@
+---
+title: "Auditoria & Limpeza"
+description: "Lista por repositório de código/ficheiros a limpar — verificado."
+---
+
+Lista **verificada** por scan ao código. Legenda de confiança:
+🟢 remover (confirmado sem referências) · 🟡 rever (routing por ficheiro / a confirmar) · 🔵 infra/processo.
+
+## Contrato Frontend ↔ API: limpo ✅
+21 chamadas `/api/v1/...` dos frontends cruzadas com as rotas definidas: **0 apontam para rotas inexistentes**.
+
+## Ficheiros lixo / temporários 🟢
+| Repo | Ficheiro |
+|---|---|
+| API-PAYMENTS | `.DS_Store` |
+| admin-dashboard | `tsconfig.tsbuildinfo` (deve estar no `.gitignore`) |
+| konecta.pt | `src/lib/_table.tmp` |
+| payments-konecta-web | `.next/`, `out/`, `.vercel/`, `.wrangler/` commitados (artefactos de build — gitignore) |
+
+## konecta.pt (site) 🟢
+Confirmados **sem referências** (0 imports):
+- `src/pages/Status.tsx` — **página morta** (a rota `/status` usa o `Help`, não esta).
+- `src/components/NavLink.tsx`
+- `src/components/home/FeaturedOffers.tsx`
+- `src/components/home/PromoBanner.tsx`
+
+## App (mobile) 🟢
+Código morto confirmado (0 usos — debug/test/old/exemplos):
+- `src/components/common/OnboardingScreenOld.tsx`
+- `src/components/common/OnboardingScreenNew.tsx`
+- `src/components/common/TestR2Assets.tsx`
+- `src/components/common/SupabaseDebug.tsx`
+- `src/components/common/ParticleEffect.tsx`
+- `src/utils/debugAuth.ts`
+- `src/examples/dualDatabaseUsage.ts`
+
+🟡 A rever (Expo Router usa `app/` por convenção — não são órfãos): `HomeScreen`,
+`KonectaLogo/KonectaLogoSVG`, `VPNMetricsCard`, `DeviceCompatibilityBanner`,
+`ThemeToggle`, `Screen`, `GlobeIcon`, `useAssets`, `instantNotificationService`,
+`useUserProfileStore` — verificar uso real antes de mexer.
+
+## payments-konecta-web 🟡
+- **Build falhado** (OneUptime) → corrigir primeiro.
+- Muitos componentes aparecem **não referenciados** pelas páginas (`ErrorModal`,
+  `MBWayPaymentForm`, `CardPaymentForm`, `PaymentMethodSelector`,
+  `ThreeDSecureModal`, `SuccessModal`, `PlanSummary`, `SecurityBadge`,
+  `CheckoutHeader`, `PaymentMethodCard`, `TestCards`) — confirmar contra a página de
+  checkout antes de remover. Provável legado.
+- Remover artefactos commitados (ver acima).
+
+## admin-dashboard 🟢
+- Sem componentes órfãos. Só o `tsconfig.tsbuildinfo` (lixo).
+
+## Backends & Infra 🔵
+- **`konecta-status`** (`API-BACKEND/workers-status`, `status.konecta.pt`, cron `*/5`) —
+  substituído pelo **OneUptime** → desativar/remover.
+- **Webhook Stripe duplicado**: `/api/v1/webhooks/stripe` no API-BACKEND **e** API-PAYMENTS
+  → confirmar o ativo, remover o outro.
+- **Branches obsoletas**: `develop` (API-BACKEND, API-ESIMS, API-PAYMENTS, App),
+  `feat/cloudflare-workers-migration` (3 APIs), `dependabot/*` (konecta.pt) → apagar.
+- **Vulnerabilidades Dependabot** em vários repos → `npm audit fix` / Dependabot updates.
+- **LB**: migrar para domínio isolado (`lb.statuskonecta.pt`); sanar fallbacks
+  `api-esims` (503) e `api-backend` (000).
+
+## Limitações conhecidas (não são bugs)
+- Mapa da Overview: 209/210 países pintam; **Kosovo** não pinta por ausência no mapa base.

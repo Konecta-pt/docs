@@ -19,6 +19,7 @@
           "index",
           "architecture",
           "deployment",
+          "ambientes-teste",
           "status-monitoring",
           "cleanup"
         ]

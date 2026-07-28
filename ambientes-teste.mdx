@@ -1,0 +1,110 @@
+---
+title: "Ambientes de Teste"
+description: "Como configurar e usar o ambiente de desenvolvimento (`env.development`) nos Workers e os previews automáticos nas Pages."
+---
+
+## Produção vs. desenvolvimento
+
+Cada Cloudflare Worker do Konecta tem dois ambientes possíveis, ambos servidos em
+`workers.dev` (o domínio de produção `*.konecta.pt` só aponta para o ambiente de
+produção):
+
+- **Produção** (`[vars]` / ambiente por omissão) — nome do worker sem sufixo,
+  ligado às rotas `*.konecta.pt` definidas no `wrangler.toml`.
+- **Desenvolvimento** (`[env.development]`) — worker separado, com o sufixo
+  `-dev` no nome, sem rota custom — só acessível pelo URL `*.workers.dev`.
+
+Os dois ambientes correm o **mesmo código**, mas com bindings, vars e (potencialmente)
+secrets independentes — dados de teste não tocam nas KV/DB de produção quando os
+bindings de dev apontam para recursos separados.
+
+<Note>
+O `wrangler.toml` **não herda** `[vars]` para dentro de `[env.development.vars]`.
+Cada var de produção que também é preciso em dev tem de estar duplicada
+explicitamente na secção do ambiente — é por isso que `[env.development.vars]`
+repete `ENV`, `DEFAULT_PROVIDER`, etc.
+</Note>
+
+## Workers — nome e URL por ambiente
+
+| Repo | Worker produção | Worker dev | URL produção | URL dev |
+|---|---|---|---|---|
+| API-BACKEND | `konecta-api` | `konecta-api-dev` | `api.konecta.pt` (custom domain) · `konecta-api.konecta-pt.workers.dev` | `konecta-api-dev.konecta-pt.workers.dev` |
+| API-ESIMS | `konecta-esims` | `konecta-esims-dev` | `eu-esims.konecta.pt` (custom domain) · `konecta-esims.konecta-pt.workers.dev` | `konecta-esims-dev.konecta-pt.workers.dev` |
+| API-PAYMENTS | `konecta-payments` | `konecta-payments-dev` | `payments.konecta.pt` (custom domain) · `konecta-payments.konecta-pt.workers.dev` | `konecta-payments-dev.konecta-pt.workers.dev` |
+
+<Info>
+API-BACKEND já tinha `[env.development]` configurado. Os ambientes de
+API-ESIMS e API-PAYMENTS foram adicionados a seguir ao mesmo padrão, para os
+três repos de Workers ficarem consistentes.
+</Info>
+
+## Deploy para o ambiente de dev
+
+```bash
+cd <repo>/workers
+wrangler deploy --env development
+```
+
+Sem `--env development`, o `wrangler deploy` publica sempre em **produção**.
+
+## Secrets no ambiente de dev
+
+Os secrets (Stripe keys, Supabase service role, etc.) nunca vivem no
+`wrangler.toml` — só `[vars]` (valores não sensíveis) é que ficam lá. Para
+configurar um secret no ambiente de dev de um worker:
+
+```bash
+wrangler secret put NOME_SECRET --env development
+```
+
+<Warning>
+Secrets **não são partilhados** entre ambientes. Um secret feito com
+`wrangler secret put NOME_SECRET` (sem `--env`) só existe em produção — é
+preciso repetir o comando com `--env development` para o worker de dev
+conseguir arrancar.
+</Warning>
+
+## Cloudflare Pages (admin-dashboard, konecta.pt, payments-konecta-web)
+
+As Pages **não usam** `env.development` — o Cloudflare já cria automaticamente
+um **preview deployment** por branch através da integração nativa
+Cloudflare Pages ↔ GitHub (ver [Deploys, Branches & Ambientes](/deployment)).
+
+- Qualquer push para a branch `dev` fica disponível em
+  `dev.<nome-do-projeto>.pages.dev` (ex.: `dev.konecta-admin.pages.dev`).
+- Variáveis de ambiente **Preview** vs **Production** configuram-se
+  separadamente no dashboard Cloudflare Pages (Settings → Environment variables).
+- Não é preciso nenhuma configuração extra no `wrangler.toml` das Pages para
+  isto funcionar — o preview por branch é automático assim que o projeto está
+  ligado ao repositório GitHub.
+
+<Note>
+O nome exato do projeto Pages de `konecta.pt` (o site) não está fixado em
+nenhum ficheiro do repositório — confirmar no dashboard Cloudflare Pages.
+`konecta-admin` (admin-dashboard) e `konecta-payments` (payments-konecta-web)
+estão definidos em `[env.production].name` nos respetivos `wrangler.toml`.
+</Note>
+
+## Comandos rápidos de referência
+
+```bash
+# deploy de um Worker para dev
+cd <repo>/workers
+wrangler deploy --env development
+
+# deploy de um Worker para produção
+wrangler deploy
+
+# adicionar/atualizar um secret em dev
+wrangler secret put NOME_SECRET --env development
+
+# adicionar/atualizar um secret em produção
+wrangler secret put NOME_SECRET
+
+# listar deployments de um Worker
+wrangler deployments list --env development
+
+# tail de logs em tempo real (dev)
+wrangler tail --env development
+```

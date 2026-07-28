@@ -132,13 +132,22 @@ O mesmo segredo é usado pelo [API-BACKEND](/repos/api-backend) e pelo
 O `POST /api/v1/sync-products` é a exceção: usa o `SYNC_SECRET`, que tem de bater
 certo com o `ESIMS_SYNC_SECRET` das Pages Functions do admin.
 
-## Dívida conhecida
+## Typecheck e Browser Rendering
+
+O `tsconfig.json` inclui **`"DOM"`** no `lib`, ao contrário dos outros dois workers.
+Não é engano: os callbacks passados ao `page.evaluate()` do Browser Rendering correm
+**no browser**, não no Worker, e sem `DOM` o TypeScript não conhece `document`,
+`window` nem `HTMLInputElement`.
 
 <Warning>
-`npx tsc --noEmit` neste worker devolve **41 erros**, todos no código de Browser
-Rendering do CMLink (`document`/`window` dentro dos callbacks de `page.evaluate`, e
-`cmlink.ts` a importar um `Env` que o `index.ts` não exporta). Como o
-`.github/workflows/ci.yml` corre exatamente esse comando, **qualquer PR `dev → main`
-neste repositório fica com o check vermelho e não faz merge** até isto ser
-resolvido.
+O preço disto é o TypeScript deixar de assinalar `document`/`window` usados por
+engano no código do Worker, onde não existem — aí o erro só aparece em runtime.
+Fora dos callbacks de `page.evaluate()`, não usar APIs de browser.
 </Warning>
+
+<Note>
+Este worker teve 39 erros de typecheck até 28/07/2026, o que bloqueava o `ci.yml`
+**e** o `deploy-workers.yml` (o job de deploy tem `needs: typecheck`) — o worker só
+ia a produção com `wrangler deploy` manual. Resolvido com o `lib: ["ESNext", "DOM"]`,
+um `querySelector<HTMLInputElement>` e a remoção de um import morto.
+</Note>

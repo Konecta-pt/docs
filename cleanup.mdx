@@ -80,9 +80,6 @@ Verificado contra o projeto Supabase real (ver [Base de dados](/database)):
   (API-BACKEND, página Concorrência), `visitor_sessions` e `visitor_page_views`
   (API-ESIMS, `POST /api/v1/track`). As migrations existem por aplicar — ou se
   aplicam, ou se remove o código.
-- **`API-ESIMS` não passa no typecheck**: 41 erros no código de Browser Rendering do
-  CMLink. Como o `ci.yml` corre `npx tsc --noEmit`, nenhum PR `dev → main` deste
-  repositório consegue fazer merge até estar resolvido.
 - Funções e triggers `*_livemap_*` na base de dados sem nenhum frontend que os use.
 
 ## Resolvido — não era problema
@@ -99,6 +96,11 @@ Verificado contra o projeto Supabase real (ver [Base de dados](/database)):
   `ESIMACCESS_ACCESS_CODE` e a opção de sync no admin. O helper de câmbio USD→EUR
   passou para `pricing.ts` (`getUsdToEur`) porque o esimcard e o CMLink precisam
   dele. Falta apagar o secret: `wrangler secret delete ESIMACCESS_ACCESS_CODE`.
+- **Typecheck do API-ESIMS reposto a zero** (28/07/2026) — eram 39 erros que
+  bloqueavam o `ci.yml` e o `deploy-workers.yml`, obrigando a `wrangler deploy`
+  manual. Corrigido com `lib: ["ESNext", "DOM"]` no `tsconfig.json`,
+  `querySelector<HTMLInputElement>` e a remoção de um import morto em `cmlink.ts`.
+  O deploy automático deste worker volta a funcionar.
 
 ## Limitações conhecidas (não são bugs)
 - Mapa da Overview: 209/210 países pintam; **Kosovo** não pinta por ausência no mapa base.

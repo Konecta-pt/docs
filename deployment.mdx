@@ -5,24 +5,53 @@ description: "Modelo de branches, CI e como cada repo chega a produção."
 
 ## Modelo de branches
 
-Todos os repositórios usam:
+Todos os repositórios usam **só duas branches**:
 
 - **`main` = produção**
 - **`dev` = teste / integração**
 
-Fluxo: trabalhar em `dev` → `push` → o **check de CI** corre → abrir **PR `dev → main`**
-→ com o check verde, **merge** → produção.
+Não há branches `feat/*` de longa duração nem `develop` — tudo o que é trabalho em
+curso vive em `dev` até estar pronto para ir para produção via PR.
+
+## Fluxo diário da equipa
+
+1. Trabalhar sempre a partir de `dev` (`git checkout dev && git pull`).
+2. Fazer commit e `git push origin dev`.
+3. Abrir **PR `dev → main`** no GitHub.
+4. O **CI (`typecheck`)** corre automaticamente no PR — instala dependências e
+   corre `tsc`/build. Sem check verde, não é possível fazer merge.
+5. Merge do PR para `main` → **deploy automático** para produção (ver abaixo,
+   varia por tipo de repo).
 
 <Info>
-Cada repo tem um workflow `.github/workflows/ci.yml` que corre em PRs para `main`
-(instala, `tsc`/build). A **proteção do `main`** (exigir PR + check) configura-se no
-GitHub: *Settings → Branches → ruleset*.
+Cada repo tem `.github/workflows/ci.yml`, que corre em PRs para `main` e falha o
+check se o typecheck não passar.
 </Info>
+
+## Proteção do `main`
+
+Configurado via GitHub *Settings → Rules → Rulesets* (não o branch protection
+clássico):
+
+- **Só via PR** — push direto e force-push para `main` estão bloqueados.
+- **CI obrigatório** — o check `typecheck` tem de passar antes do merge ser
+  permitido.
+- Sem exigência de aprovação humana adicional (equipa pequena) — o CI verde é o
+  gate.
 
 ## Como cada tipo de repo deploya
 
 ### Cloudflare Workers (API-BACKEND, API-ESIMS, API-PAYMENTS)
-Deploy por `wrangler` (não por git):
+**Deploy automático** via GitHub Actions, no merge do PR para `main`:
+
+- Workflow `.github/workflows/deploy-workers.yml`, trigger `push` para `main`
+  com `paths: ['workers/**']` — só dispara se o merge tocar código do worker.
+- Corre `typecheck` primeiro; se passar, faz `npx wrangler deploy` usando o
+  secret `CLOUDFLARE_API_TOKEN` configurado no GitHub Actions.
+- Também pode ser disparado manualmente (`workflow_dispatch`) a partir do
+  separador Actions no GitHub, sem precisar de push.
+
+Deploy manual local (só para emergências / debugging, fora do fluxo normal):
 
 ```bash
 cd <repo>/workers
@@ -34,7 +63,8 @@ wrangler deploy --env dev  # ambiente de teste (se configurado em wrangler.toml)
 - Crons e rotas são definidos no `wrangler.toml`.
 
 ### Cloudflare Pages (admin-dashboard, konecta.pt, payments-konecta-web)
-Build automático por push:
+Build automático por push, gerido pela integração nativa Cloudflare Pages ↔ GitHub
+(não passa pelo GitHub Actions):
 
 - **Production branch = `main`** → domínio de produção.
 - Qualquer outra branch (ex.: `dev`) → **preview deployment** com URL próprio (ambiente de teste).
@@ -43,6 +73,31 @@ Build automático por push:
 ### Railway (LB e fallbacks)
 Deploy por push do repo conectado. Variáveis de ambiente no painel Railway.
 
+## Comandos úteis de referência rápida
+
+```bash
+# começar trabalho novo
+git checkout dev
+git pull origin dev
+
+# publicar trabalho
+git add <ficheiros>
+git commit -m "mensagem"
+git push origin dev
+
+# depois do PR aprovado e com CI verde, o merge é feito no GitHub (botão),
+# não localmente
+
+# manter dev atualizada depois de um merge para main
+git checkout dev
+git pull origin dev
+git merge main
+git push origin dev
+
+# disparar deploy manual de um Worker sem push (workflow_dispatch)
+# GitHub → repo → Actions → "Deploy Konecta ... Worker" → Run workflow
+```
+
 ## Secrets partilhados importantes
 
 - `INTERNAL_API_SECRET` — segredo partilhado entre **API-BACKEND** e **API-ESIMS**
@@ -50,6 +105,9 @@ Deploy por push do repo conectado. Variáveis de ambiente no painel Railway.
   admin, o equivalente é `VITE_INTERNAL_API_SECRET` (tem de ser **igual**).
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
 - `STRIPE_SECRET_KEY`, `RESEND_API_KEY`.
+- `CLOUDFLARE_API_TOKEN` — usado pelo GitHub Actions para fazer `wrangler deploy`
+  nos 3 repos de Workers (configurado como secret do repositório no GitHub, não
+  do Cloudflare).
 
 <Warning>
 Se rodares o `INTERNAL_API_SECRET`, tens de o atualizar em **todos** os

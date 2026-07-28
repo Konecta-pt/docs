@@ -30,14 +30,20 @@ check se o typecheck não passar.
 
 ## Proteção do `main`
 
-Configurado via GitHub *Settings → Rules → Rulesets* (não o branch protection
-clássico):
+Configurado via GitHub *Settings → Branches → Add branch protection rule*:
 
-- **Só via PR** — push direto e force-push para `main` estão bloqueados.
-- **CI obrigatório** — o check `typecheck` tem de passar antes do merge ser
-  permitido.
-- Sem exigência de aprovação humana adicional (equipa pequena) — o CI verde é o
-  gate.
+- **Branch name pattern:** `main`
+- **Require a pull request before merging** — push direto para `main` fica bloqueado.
+- **Require status checks to pass** → check `typecheck`.
+- **Do not allow bypassing the above settings** — nem admins passam por cima das regras.
+
+<Note>
+O GitHub tem duas formas de proteger branches: **Rulesets** (Settings → Rules →
+Rulesets) e **Branch protection rules** (Settings → Branches), que é a usada aqui.
+Rulesets exigem o plano **GitHub Team** (pago); Branch protection rules têm o
+mesmo efeito prático (PR obrigatório + CI obrigatório + sem bypass) e funcionam
+no **plano gratuito**.
+</Note>
 
 ## Como cada tipo de repo deploya
 

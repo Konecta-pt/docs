@@ -95,6 +95,23 @@ account_id = "719720bab62cc014f5f5b43894c33e7a"
 O account ID não é sensível — aparece no URL do dashboard.
 </Accordion>
 
+<Accordion title="O deploy passa mas o URL workers.dev devolve `error code: 1042`">
+O deploy correu bem — o que está desligado é o **subdomínio `workers.dev`** desse
+worker. Quando um `[env.*]` declara `routes`, o wrangler cria o worker novo com o
+`workers.dev` **desligado**, porque assume que o custom domain é o único endereço.
+
+Nos ambientes de dev isso parte a comunicação entre workers: o `konecta-api-dev`
+chama o `konecta-esims-dev` pelo `workers.dev` precisamente para **não** apanhar o
+redirect de login do Access. Por isso os três `[env.development]` têm:
+
+```toml
+workers_dev = true
+```
+
+Depois de ligar, o endereço pode demorar **1–2 minutos** a propagar — continua a
+dar 1042 durante esse tempo, mesmo com a API já a dizer `enabled: true`.
+</Accordion>
+
 <Accordion title="A request to the Cloudflare API (/accounts/.../workers/services/...) failed — code 10000">
 Agora a conta está certa e o problema é o **token não ter Workers nessa conta**.
 Cria-o em `dash.cloudflare.com/profile/api-tokens` a partir do template **Edit

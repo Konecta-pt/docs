@@ -146,7 +146,18 @@ git push origin dev
 
 ## Estado da montagem
 
-Feito (28/07/2026):
+Feito (29/07/2026) — **o ambiente de dev está no ar**:
+
+- Os três workers existem e respondem: `konecta-api-dev`, `konecta-esims-dev`,
+  `konecta-payments-dev` (`/health` devolve `"env":"development"`).
+- Os três DNS `api-dev`/`eu-esims-dev`/`payments-dev.konecta.pt` foram criados
+  pelo wrangler (AAAA proxied) e devolvem **302 para o portal do Access**.
+- Os três `workers.dev` estão ligados, para os workers se chamarem entre si sem
+  passar pelo Access.
+- Produção intacta: `api.konecta.pt`, `eu-esims.konecta.pt` e
+  `payments.konecta.pt` continuam a devolver `"env":"production"`.
+
+Feito antes (28/07/2026):
 
 - `[env.development]` nos três `wrangler.toml`, com o custom domain, as vars e
   **KV próprio** (`konecta-sessions-dev`, `konecta-cache-dev`, `cmlink-*-dev`) para
@@ -160,27 +171,22 @@ Feito (28/07/2026):
 
 Por fazer, e precisa dos valores dos secrets:
 
-1. **Pôr um `CLOUDFLARE_API_TOKEN` válido como *repository secret* nos três
-   repos.** O secret já existe (29/07/2026) mas o token não tem permissões de
-   Workers nesta conta — o `deploy-dev.yml` falha com `Authentication error
-   [code: 10000]` em `/accounts/.../workers/services/konecta-*-dev`. É por isso
-   que os workers `-dev` ainda não existem e os DNS `*-dev.konecta.pt` ainda não
-   foram criados. Ver [as três causas em Deployment](/deployment#quando-o-deploy-falha-e-o-typecheck-passa).
-2. Voltar a disparar o workflow (`Actions → Deploy ... (dev) → Run workflow`) →
-   o `wrangler` cria o worker `-dev` e o custom domain.
-3. Configurar os secrets desse worker com `--env development` (não há herança —
-   ver abaixo).
-4. Preencher as variáveis do ambiente **Preview** dos três projetos Pages, que
+1. **Configurar os secrets dos três workers de dev.** Neste momento têm **zero**
+   secrets (`SUPABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`,
+   `INTERNAL_API_SECRET`, ...), por isso respondem mas rebentam em quase todas as
+   rotas. Cada um precisa de `wrangler secret put NOME --env development` — não há
+   herança de produção, ver abaixo.
+2. Preencher as variáveis do ambiente **Preview** dos três projetos Pages, que
    estão vazias, apontando `VITE_API_URL`/`NEXT_PUBLIC_API_URL` para o URL
    `workers.dev` do `konecta-api-dev`.
 
 <Note>
-O token precisa de: **Account → Workers Scripts: Edit**, **Account → Workers KV
-Storage: Edit**, **Account → Account Settings: Read** e, para o custom domain,
-**Zone → Workers Routes: Edit** e **Zone → Zone: Read** na zona `konecta.pt`.
-Em **Account Resources** tem de estar `Konecta.pt@gmail.com's Account`.
-Um token só com Workers Scripts publica o worker mas rebenta ao ligar
-`eu-esims-dev.konecta.pt`.
+O `CLOUDFLARE_API_TOKEN` do GitHub Actions precisa de: **Account → Workers
+Scripts: Edit**, **Account → Workers KV Storage: Edit**, **Account → Account
+Settings: Read** e, para o custom domain, **Zone → Workers Routes: Edit** e
+**Zone → Zone: Read** na zona `konecta.pt`. Em **Account Resources** tem de estar
+`Konecta.pt@gmail.com's Account`. Tem de ser um *repository secret* — um
+*environment secret* não é visível a um job sem `environment:`.
 </Note>
 
 ## Secrets no ambiente de dev

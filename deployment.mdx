@@ -62,6 +62,22 @@ no **plano gratuito**.
 - Também podem ser disparados manualmente (`workflow_dispatch`) a partir do
   separador Actions no GitHub, sem precisar de push.
 
+<Warning>
+**O secret `CLOUDFLARE_API_TOKEN` não está configurado em nenhum dos três repos**
+(verificado a 29/07/2026 na API do GitHub: `Settings → Secrets → Actions` está
+vazio). Sem ele o job de deploy falha sempre no último passo, com:
+
+```
+✘ [ERROR] In a non-interactive environment, it's necessary to set a
+CLOUDFLARE_API_TOKEN environment variable for wrangler to work.
+```
+
+O `typecheck` passa, por isso o run parece só "meio vermelho" — mas **nada é
+publicado**. Todos os deploys até hoje foram manuais (`wrangler deploy` local).
+Adiciona o token em cada repo (`Settings → Secrets and variables → Actions →
+New repository secret`) antes de contar com o deploy automático.
+</Warning>
+
 <Note>
 O `ci.yml` é outra coisa e continua a fazer falta: corre nos **pull requests** para
 `main` e é o check que a branch protection exige antes do merge. Os `deploy-*.yml`

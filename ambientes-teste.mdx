@@ -160,12 +160,27 @@ Feito (28/07/2026):
 
 Por fazer, e precisa dos valores dos secrets:
 
-1. Fazer push para `dev` num dos repos → o GitHub Actions cria o worker.
-2. Configurar os secrets desse worker com `--env development` (não há herança —
+1. **Adicionar o secret `CLOUDFLARE_API_TOKEN` aos três repos no GitHub**
+   (`Settings → Secrets and variables → Actions`). Está vazio nos três, por isso
+   os `deploy-dev.yml` já correram e falharam todos no passo de deploy — o
+   `typecheck` passa e o `wrangler` morre a seguir por falta de token. É por isso
+   que os workers `-dev` ainda não existem e que os DNS `*-dev.konecta.pt` ainda
+   não foram criados.
+2. Voltar a disparar o workflow (`Actions → Deploy ... (dev) → Run workflow`) →
+   o `wrangler` cria o worker `-dev` e o custom domain.
+3. Configurar os secrets desse worker com `--env development` (não há herança —
    ver abaixo).
-3. Preencher as variáveis do ambiente **Preview** dos três projetos Pages, que
+4. Preencher as variáveis do ambiente **Preview** dos três projetos Pages, que
    estão vazias, apontando `VITE_API_URL`/`NEXT_PUBLIC_API_URL` para o URL
    `workers.dev` do `konecta-api-dev`.
+
+<Note>
+O token precisa de: **Account → Workers Scripts: Edit**, **Account → Workers KV
+Storage: Edit**, **Account → Account Settings: Read** e, para o custom domain,
+**Zone → Workers Routes: Edit** e **Zone → Zone: Read** na zona `konecta.pt`.
+Um token só com Workers Scripts publica o worker mas rebenta ao ligar
+`eu-esims-dev.konecta.pt`.
+</Note>
 
 ## Secrets no ambiente de dev
 

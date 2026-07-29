@@ -62,20 +62,69 @@ no **plano gratuito**.
 - Também podem ser disparados manualmente (`workflow_dispatch`) a partir do
   separador Actions no GitHub, sem precisar de push.
 
+### Quando o deploy falha e o typecheck passa
+
+O `typecheck` corre num job separado, por isso um run pode ficar "meio vermelho"
+com o `wrangler` a nunca publicar nada. Três causas já encontradas, por ordem em
+que aparecem (cada uma só se vê depois de resolver a anterior):
+
+<AccordionGroup>
+<Accordion title="In a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN">
+O secret não existe, **ou existe no sítio errado**. Um secret criado em
+`Settings → Environments → <ambiente> → Secrets` é um **environment secret**: só
+é visível a um job que declare `environment: <nome>`. Os `deploy-*.yml` não
+declaram nenhum, por isso `${{ secrets.CLOUDFLARE_API_TOKEN }}` fica **string
+vazia** e o wrangler comporta-se como se não houvesse token.
+
+Tem de ser um **repository secret**: `Settings → Secrets and variables → Actions
+→ New repository secret`.
+</Accordion>
+
+<Accordion title="A request to the Cloudflare API (/memberships) failed — code 10000">
+Sem `account_id`, o wrangler chama `GET /memberships` para descobrir a que conta
+pertence o token — e um API token de deploy normal **não tem permissão nesse
+endpoint** (só a Global API Key, ou um token com `User → Memberships: Read`).
+
+Resolve-se fixando a conta no `wrangler.toml` (já está nos três repos, a seguir
+ao `name`), o que também torna o deploy local determinístico:
+
+```toml
+account_id = "719720bab62cc014f5f5b43894c33e7a"
+```
+
+O account ID não é sensível — aparece no URL do dashboard.
+</Accordion>
+
+<Accordion title="A request to the Cloudflare API (/accounts/.../workers/services/...) failed — code 10000">
+Agora a conta está certa e o problema é o **token não ter Workers nessa conta**.
+Cria-o em `dash.cloudflare.com/profile/api-tokens` a partir do template **Edit
+Cloudflare Workers**, e confirma que em **Account Resources** está incluída a
+conta `Konecta.pt@gmail.com's Account` — um token limitado a outra conta, ou só
+com permissões de zona, dá exatamente este erro.
+
+Permissões mínimas: `Workers Scripts: Edit`, `Workers KV Storage: Edit`,
+`Account Settings: Read` e, para os custom domains `*-dev.konecta.pt`,
+`Workers Routes: Edit` + `Zone: Read` na zona `konecta.pt`.
+
+Para confirmar um token antes de o colar no GitHub:
+
+```bash
+curl -s https://api.cloudflare.com/client/v4/user/tokens/verify \
+  -H "Authorization: Bearer <token>"
+
+curl -s https://api.cloudflare.com/client/v4/accounts/719720bab62cc014f5f5b43894c33e7a/workers/scripts \
+  -H "Authorization: Bearer <token>"
+```
+
+O primeiro diz se o token é válido; o segundo é o que o wrangler precisa mesmo —
+se der `10000`, faltam as permissões de Workers.
+</Accordion>
+</AccordionGroup>
+
 <Warning>
-**O secret `CLOUDFLARE_API_TOKEN` não está configurado em nenhum dos três repos**
-(verificado a 29/07/2026 na API do GitHub: `Settings → Secrets → Actions` está
-vazio). Sem ele o job de deploy falha sempre no último passo, com:
-
-```
-✘ [ERROR] In a non-interactive environment, it's necessary to set a
-CLOUDFLARE_API_TOKEN environment variable for wrangler to work.
-```
-
-O `typecheck` passa, por isso o run parece só "meio vermelho" — mas **nada é
-publicado**. Todos os deploys até hoje foram manuais (`wrangler deploy` local).
-Adiciona o token em cada repo (`Settings → Secrets and variables → Actions →
-New repository secret`) antes de contar com o deploy automático.
+Até 29/07/2026 o GitHub Actions **nunca publicou nada** — todos os deploys que
+existem foram `wrangler deploy` manual a partir da máquina local. Não assumas que
+um worker está atualizado só porque o push passou.
 </Warning>
 
 <Note>

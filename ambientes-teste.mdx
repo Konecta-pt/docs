@@ -160,12 +160,12 @@ Feito (28/07/2026):
 
 Por fazer, e precisa dos valores dos secrets:
 
-1. **Adicionar o secret `CLOUDFLARE_API_TOKEN` aos três repos no GitHub**
-   (`Settings → Secrets and variables → Actions`). Está vazio nos três, por isso
-   os `deploy-dev.yml` já correram e falharam todos no passo de deploy — o
-   `typecheck` passa e o `wrangler` morre a seguir por falta de token. É por isso
-   que os workers `-dev` ainda não existem e que os DNS `*-dev.konecta.pt` ainda
-   não foram criados.
+1. **Pôr um `CLOUDFLARE_API_TOKEN` válido como *repository secret* nos três
+   repos.** O secret já existe (29/07/2026) mas o token não tem permissões de
+   Workers nesta conta — o `deploy-dev.yml` falha com `Authentication error
+   [code: 10000]` em `/accounts/.../workers/services/konecta-*-dev`. É por isso
+   que os workers `-dev` ainda não existem e os DNS `*-dev.konecta.pt` ainda não
+   foram criados. Ver [as três causas em Deployment](/deployment#quando-o-deploy-falha-e-o-typecheck-passa).
 2. Voltar a disparar o workflow (`Actions → Deploy ... (dev) → Run workflow`) →
    o `wrangler` cria o worker `-dev` e o custom domain.
 3. Configurar os secrets desse worker com `--env development` (não há herança —
@@ -178,6 +178,7 @@ Por fazer, e precisa dos valores dos secrets:
 O token precisa de: **Account → Workers Scripts: Edit**, **Account → Workers KV
 Storage: Edit**, **Account → Account Settings: Read** e, para o custom domain,
 **Zone → Workers Routes: Edit** e **Zone → Zone: Read** na zona `konecta.pt`.
+Em **Account Resources** tem de estar `Konecta.pt@gmail.com's Account`.
 Um token só com Workers Scripts publica o worker mas rebenta ao ligar
 `eu-esims-dev.konecta.pt`.
 </Note>

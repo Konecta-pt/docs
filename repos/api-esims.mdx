@@ -124,6 +124,19 @@ primeiros eSIMs vendidos ficaram `expired` 15 segundos depois da compra):
   está, o código cai para `in_use_packages[0]`, cuja data é a do pacote por usar.
 </Warning>
 
+<Note>
+**`expired` só é terminal se houver `activated_at`.** É o mesmo critério nos dois
+sítios que definem essa política, e têm de andar juntos:
+
+- o cron varre `pending`, `active` **e** os `expired` sem `activated_at`;
+- a guarda de regressão (`regress`) só impede a volta a `pending` se o eSIM tiver
+  sido mesmo ativado.
+
+Antes, `expired` era terminal nos dois ao mesmo tempo: as linhas que o bug acima
+marcou mal ficavam presas **mesmo depois de o bug estar corrigido**, porque nada
+voltava a olhar para elas. Se mexeres num destes filtros, mexe no outro.
+</Note>
+
 ## Preços
 
 `src/pricing.ts` tem as duas funções que decidem o preço final:

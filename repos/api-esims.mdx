@@ -137,6 +137,22 @@ marcou mal ficavam presas **mesmo depois de o bug estar corrigido**, porque nada
 voltava a olhar para elas. Se mexeres num destes filtros, mexe no outro.
 </Note>
 
+<Warning>
+**`completed_packages` tem de ser lido.** Quando um plano termina, o provider tira o
+pacote de `in_use_packages` e põe-o em `completed_packages`. Se só leres o primeiro,
+ficas sem pacote — logo sem `date_expiry` e sem `date_activated` — e o `sim.status`
+continua `"Installed"` para sempre. Um eSIM gasto lê-se então como **ativo**.
+
+Foi assim que um eSIM expirado a 25/07 apareceu como `active` a 31/07, ainda por
+cima com `activated_at` = a hora do sync, porque não havia data para copiar. Um
+pacote em `completed_packages` é terminal e decide por cima de todas as outras regras.
+
+Pela mesma razão, `activated_at` **nunca** é inventado quando o provider sabe a data:
+sai do pacote em uso ou do terminado. Escrever "agora" faz um plano gasto há dias
+parecer acabado de ativar — e é essa data que a regra de validade usa na passagem
+seguinte, por isso o erro perpetua-se.
+</Warning>
+
 ## Preços
 
 `src/pricing.ts` tem as duas funções que decidem o preço final:

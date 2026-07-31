@@ -108,6 +108,26 @@ pedidos levam 401 — e o fulfillment pára, porque é este handler que chama o
 `fulfillPaidOrder()`, que cria o eSIM e a fatura.
 </Warning>
 
+<Warning>
+O evento `payment.failed` **só marca a encomenda como `failed` se ela ainda não
+estiver paga** (`.not('status','in','(paid,processing,completed,refunded,partially_refunded)')`).
+
+Sem essa condição acontecia isto: o cliente inicia um MB WAY, não confirma, faz
+uma segunda tentativa e paga. As duas tentativas partilham o **mesmo `order_id`**,
+por isso quando a primeira expira do lado da Stripe — minutos depois, já com a
+encomenda cumprida — o `failed` esmagava o `completed`. A encomenda paga saía da
+receita do admin (`/admin/stats` só soma `paid|completed`), contava como pedido
+falhado e o cliente via um pedido falhado que tinha pago. Aconteceu em produção a
+31/07/2026.
+</Warning>
+
+<Note>
+Os planos ilimitados estão gravados com `data_amount_mb` **negativo** (`-1024`, do
+catálogo antigo) ou `999999` (sync atual). O `planName` que vai para a descrição do
+PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cegas punha
+**"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
+</Note>
+
 ## Segundo worker no mesmo repo
 
 `API-BACKEND/workers-status` → worker **`konecta-status`** (`status.konecta.pt`,

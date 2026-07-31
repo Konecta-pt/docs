@@ -17,3 +17,11 @@ Distribuição fora do fluxo web (Expo / TestFlight / stores).
 Documentação a expandir com os ecrãs e o fluxo de auth quando entrarmos neste repo.
 Mantido aqui só com o que está confirmado (stack + scripts reais).
 </Note>
+
+## Preços
+
+Todo o preço de **catálogo** mostrado ao utilizador passa por `withVat()`
+(`src/utils/vat.ts`) — `EsimDetailScreen` (plano) e `MyEsimDetailScreen` (topups).
+A API devolve os preços líquidos e o IVA só é somado na criação da encomenda, por
+isso sem isto a App anunciava um valor e a Stripe cobrava 23% acima. Ver
+[IVA](/architecture#iva).

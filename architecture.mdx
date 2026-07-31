@@ -60,6 +60,27 @@ para a status page (`status.statuskonecta.pt`). O que **tem** de ficar ON são a
 
 ## IVA
 
-O IVA é **sempre 23%**, incluído no valor apresentado e cobrado. No backend, o
-checkout soma o imposto ao valor líquido; no frontend, os preços são mostrados já
-com IVA (`grossEur`, `withVat`).
+O IVA é **sempre 23%**. A regra, e a única que o código pode assumir:
+
+| Onde | Convenção |
+|---|---|
+| `esim_products.price_cents` | **líquido** — é o preço de catálogo, saído do `retailPrice()` |
+| `orders.price_cents` e `original_price_cents` | **com IVA** — é o que a Stripe cobra |
+| `invoices.amount_cents` | **com IVA**; `tax_amount_cents` é a parte de imposto |
+
+O salto de um para o outro acontece **uma única vez**, na criação da encomenda
+(`POST /konecta/order/checkout`), em `API-BACKEND/workers/src/services/vat.ts`.
+Um desconto de código promocional incide sobre o **líquido**; o IVA é calculado
+depois, sobre o valor já descontado.
+
+<Warning>
+Qualquer preço de **catálogo** mostrado ao utilizador tem de passar por um
+`withVat()`, senão anuncias um valor e a Stripe cobra 23% acima. Já aconteceu ao
+contrário: o site somava o IVA (`konecta.pt/src/lib/api.ts`) enquanto o checkout
+cobrava o líquido, e o mesmo plano aparecia a €3,32 na página e a €2,70 no
+pagamento. A App não somava nada e sub-cotava.
+
+O que **não** leva `withVat()` é tudo o que venha de `orders` ou `invoices` — esses
+valores já são brutos. O `pay.konecta.pt` divide por 1,23 para mostrar a decomposição,
+e o `vatOf()` extrai 23/123 para a fatura. Somar outra vez duplica o imposto.
+</Warning>

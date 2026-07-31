@@ -44,6 +44,27 @@ em `src/index.ts` sob `basePath('/api/v1')`. Tabela abaixo gerada a partir de
 | `POST` | `/api/v1/konecta/auth/refresh` |
 | `POST` | `/api/v1/konecta/auth/logout` |
 
+### Nome do utilizador vindo da Google
+
+O `/auth/oauth` cria o perfil em `user_profiles` com o **nome da conta Google**, que
+já vem dentro do token do Supabase que o endpoint acabou de verificar
+(`user_metadata`) — não é preciso scope adicional nem uma chamada à API da Google.
+
+Corre em **todos** os logins, não só no primeiro, para apanhar as contas criadas antes
+de isto existir. E **só escreve em campos vazios**: um nome que o utilizador tenha
+editado nunca é esmagado pelo que a Google diz no login seguinte. Se a escrita falhar,
+o login continua — é o nome a mostrar no admin, não uma condição de acesso.
+
+<Note>
+Na prática o `given_name`/`family_name` **não vem** (nenhuma das contas reais o
+trazia): o que existe é `full_name`, partido no primeiro espaço. "Sandra Pina Correia"
+→ `first_name` "Sandra", `last_name` "Pina Correia". Testes em `src/routes/names.test.ts`.
+
+Até 31/07/2026 o `user_profiles` estava **vazio para todos os utilizadores**, e por isso
+o painel de admin mostrava só o email e os emails transacionais tratavam o cliente pelo
+prefixo do endereço ("Olá sccmpcnv"). O admin já fazia o join — só não havia dados.
+</Note>
+
 ## Autenticadas — utilizador (`protectedRoutes`)
 
 | Método | Rota |

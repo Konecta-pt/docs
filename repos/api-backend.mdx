@@ -149,6 +149,43 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 **"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
 </Note>
 
+## Emails transacionais (`services/email.ts`)
+
+Resend por `fetch` direto, sem SDK. Todos saem do `fulfillPaidOrder()`:
+
+| Email | Quando |
+|---|---|
+| Pagamento confirmado | na primeira transição da encomenda para `paid` |
+| eSIM pronto | quando existe código de ativação real |
+| **Pedido de avaliação no Google** | **agendado para +24h**, a seguir ao eSIM pronto |
+
+### O pedido de avaliação
+
+Aponta para `https://g.page/r/CUTUys3ErOTGEAE/review`, com botão como caminho
+principal e um QR para quem lê no computador.
+
+<Note>
+O atraso de 24h é do **Resend**, via `scheduled_at` (ISO 8601). Não há cron, nem
+tabela de fila, nem coluna de "já enviei": o email é entregue ao Resend no momento
+da compra e ele guarda-o. Aparece em **Scheduled** no painel até sair, e pode ser
+cancelado por lá.
+
+Duas pegadilhas que o `email.preview.test.ts` tranca:
+
+- O campo é `scheduled_at`, em snake_case. Em camelCase o Resend **ignora-o em
+  silêncio** e o email sai imediatamente.
+- O QR vai como **anexo inline** (`content_id`), referenciado no HTML por `cid:`.
+  Um `data:` URI em `<img src>` é bloqueado pelo Gmail e não aparece.
+
+Vai também com um header `Idempotency-Key` (`review:<order_id>`): o fulfillment já
+correu duas vezes para a mesma encomenda, e sem isto seriam dois pedidos de avaliação.
+</Note>
+
+Para ver os emails sem fazer uma compra, põe `RESEND_API_KEY` e `PREVIEW_EMAIL` em
+`workers/.dev.vars` e corre `npx vitest run src/services/email.preview.test.ts` — envia
+os três a sério (o de avaliação agendado para +2 min) e escreve o HTML em
+`email-preview.html`.
+
 ## Segundo worker no mesmo repo
 
 `API-BACKEND/workers-status` → worker **`konecta-status`** (`status.konecta.pt`,

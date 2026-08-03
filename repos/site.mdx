@@ -19,11 +19,14 @@ Cloudflare Pages. i18n **pt/en** (`useI18n`, `lp()`, componente `<L>`).
 
 ## Redirects (`public/_redirects`)
 
-Regras da Cloudflare Pages, avaliadas antes do fallback do SPA.
+**Ficheiro gerado** por `scripts/build-seo.mjs` — não o edites à mão, a próxima
+build apaga o que lá puseres. Regras da Cloudflare Pages, avaliadas antes do
+fallback do SPA.
 
 | Rota | Destino | |
 |---|---|---|
 | `/avaliar` | `https://g.page/r/CUTUys3ErOTGEAE/review` | 302 |
+| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (113 regras) |
 
 <Note>
 O `/avaliar` não existe para o site — existe para o **email de pedido de avaliação**
@@ -34,6 +37,57 @@ aos filtros de spam.
 Não o apagues sem antes mudares o link no email: os pedidos de avaliação já
 enviados apontam para aqui.
 </Note>
+
+<Warning>
+As 113 regras de slug existem porque o router aceita **qualquer** slug debaixo de
+qualquer idioma. `/pt/esim/algeria` (nome inglês em português) não está no sitemap
+mas respondia **200** com o shell do SPA — um soft 404. Cada país existia assim em
+quatro endereços, e o Google chegou a indexar `/pt/esim/japan/`, `/en/esim/irlanda`
+e `/pt/esim/maldives`.
+
+São 301 e não 404 de propósito: os URLs errados já estão indexados, e redirecionar
+junta o sinal na página certa em vez de o deitar fora.
+</Warning>
+
+## Barra final: a regra que não podes partir
+
+O `scripts/prerender.mjs` escreve **`<rota>.html`**, nunca `<rota>/index.html`.
+
+<Warning>
+Não é estilo — é o que mantém o canonical honesto. A Cloudflare Pages serve
+`foo/index.html` em `/foo/` e redireciona `/foo` com 308. Como o canonical e o
+sitemap dizem `/foo`, o canonical passava a apontar para um URL que redirecionava
+de volta.
+
+O Google resolveu a contradição indexando as duas formas: em Agosto/2026 a
+`/pt/esim/grecia` e a `/pt/esim/grecia/` tinham **32 impressões cada** — o sinal de
+cada página partido ao meio. O mesmo em italia, portugal, franca, espanha e
+reino-unido.
+
+Se algum dia voltares a escrever `index.html` dentro de uma pasta, o problema
+regressa sem dar erro nenhum.
+</Warning>
+
+## Preços em JSON-LD
+
+Há duas funções de preço no prerender e **não são intermutáveis**:
+
+- `eur(cents, lang)` → `1,25` em PT e `1.25` em EN. Só para texto que uma pessoa lê.
+- `ld(cents)` → `1.25` sempre. Só para JSON-LD.
+
+<Warning>
+O schema.org espera ponto decimal. Um `lowPrice: "350,80"` não é lido como número
+e o resultado sai sem faixa de preço. Nunca uses o `eur()` dentro de um bloco
+JSON-LD.
+</Warning>
+
+## O que falta no schema de produto
+
+`aggregateRating` e `review` continuam em falta, e a Search Console reporta-os.
+**É deliberado**: a tabela `reviews` tem 0 linhas. Inventar avaliações em
+structured data é penalização do Google e engana o cliente. São campos
+*recomendados*, não erros bloqueantes — resolve-se sozinho quando houver
+avaliações reais para ler.
 
 ## Factos verificados
 

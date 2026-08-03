@@ -62,9 +62,41 @@ ficheiro, tudo a partir da regra 103 deixava de ser aplicado; removidas, as 229
 voltaram a funcionar. Se acrescentares regras e as últimas parecerem não existir,
 procura uma regra inválida acima delas antes de suspeitares de limites.
 
-Por isso o `/cgi-bin/` (sondagem de scanners a que o SPA respondeu 200 e o Google
-indexou) e o `/plan/4` continuam por resolver: um 301 para a homepage seria mentira
-e o Google lê-o como soft 404 na mesma.
+É por isso que o `/cgi-bin/` e o `/plan/4` são resolvidos por funções e não por
+regras — ver a secção seguinte.
+</Warning>
+
+## O 404 vive em `functions/`, não num `404.html`
+
+`/cgi-bin/` nunca existiu aqui: é o caminho que os scanners de vulnerabilidades
+sondam. O fallback do SPA respondia 200 a qualquer endereço, e o Google indexou-o em
+quatro variantes. O `/plan/4` é do esquema de URLs antigo.
+
+Cada um tem duas funções, com rota própria:
+
+```
+functions/cgi-bin.ts          -> /cgi-bin
+functions/cgi-bin/[[path]].ts -> /cgi-bin/*
+functions/pt/cgi-bin(...)     -> /pt/cgi-bin(/*)
+functions/en/cgi-bin(...)     -> /en/cgi-bin(/*)
+functions/plan(...)           -> /plan(/*)
+```
+
+São duas por caminho porque o catch-all `[[path]]` cobre `/cgi-bin/` mas **não**
+`/cgi-bin` sem barra — e o Google tem as duas formas indexadas. Todas reexportam o
+mesmo handler de `src/lib/notFound404.ts` (nada na app o importa, por isso não entra
+no bundle).
+
+<Warning>
+**Não ponhas um `404.html` na raiz do build.** A Pages deteta esse ficheiro e passa
+a servi-lo em **qualquer** rota que não corresponda a um ficheiro — e o `/pt/login`,
+o `/pt/profile` e o `/pt/esims` não são pré-renderizados. Partias a autenticação
+para arrumar quatro URLs de lixo.
+
+Pela mesma razão não há `_middleware.ts`: um middleware na raiz põe o Worker à
+frente de **todos** os pedidos, e limitá-lo obriga a um `_routes.json` que se pode
+configurar mal. Com funções de rota própria o alcance é estrutural — só estes
+caminhos passam pelo Worker, o resto do site continua estático.
 </Warning>
 
 ## Barra final: a regra que não podes partir

@@ -99,6 +99,34 @@ configurar mal. Com funções de rota própria o alcance é estrutural — só e
 caminhos passam pelo Worker, o resto do site continua estático.
 </Warning>
 
+## Nomes de país em português (`src/lib/countries.pt.json`)
+
+Chave = slug do nome inglês que o provider devolve; valor = nome português. O valor
+determina **o nome apresentado e o slug do URL**, por isso os dois nunca divergem.
+Só entram aqui os países cujo nome **difere** do inglês — a ausência de Andorra ou
+de Malta está correta, não é uma falha.
+
+<Note>
+Acrescentar um nome pode mudar o URL: `Catar` faz a página passar de
+`/pt/esim/qatar` para `/pt/esim/catar`. Não é preciso escrever redirects — o
+`build-seo.mjs` passa a ver `qatar` como slug de idioma errado e gera o 301
+sozinho. Já os nomes que só diferem em acentos (`Albânia`, `Gâmbia`, `Namíbia`)
+mantêm o slug, porque o slugify remove os acentos.
+</Note>
+
+<Warning>
+Quatro países estão **deliberadamente por traduzir**: Bahamas, Bangladesh, Malawi e
+Kuwait. Em português de Portugal seriam Baamas, Bangladeche, Maláui e Koweit, mas
+ninguém pesquisa assim. Num site que existe para ser encontrado ganha a forma que
+as pessoas escrevem — não as adiciones sem essa conversa.
+
+Há também sete nomes que chegam **estragados do provider** e que traduzir só
+esconderia, porque aparecem errados em inglês também: `Czech`, `Dominican`,
+`Hawaii` (não é país, e `US-HI` não é ISO alpha-2), `Netherlands Antilles`
+(dissolvidas em 2010), `Canary Islands` (não é país), `Bosnia Herzegovina` (falta o
+"and") e `Cote d’Ivoire` (apóstrofo curvo). A correção é no catálogo, não aqui.
+</Warning>
+
 ## Barra final: a regra que não podes partir
 
 O `scripts/prerender.mjs` escreve **`<rota>.html`**, nunca `<rota>/index.html`.

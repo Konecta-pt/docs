@@ -26,7 +26,7 @@ fallback do SPA.
 | Rota | Destino | |
 |---|---|---|
 | `/avaliar` | `https://g.page/r/CUTUys3ErOTGEAE/review` | 302 |
-| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (113 regras) |
+| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (229 regras) |
 
 <Note>
 O `/avaliar` não existe para o site — existe para o **email de pedido de avaliação**
@@ -47,6 +47,24 @@ e `/pt/esim/maldives`.
 
 São 301 e não 404 de propósito: os URLs errados já estão indexados, e redirecionar
 junta o sinal na página certa em vez de o deitar fora.
+
+Cada país gera **quatro** regras, não duas. O `_redirects` compara o caminho
+literalmente: uma regra para `/pt/esim/egypt` **não** apanha `/pt/esim/egypt/`, e é
+a forma com barra que o Google costuma ter indexada.
+</Warning>
+
+<Warning>
+**O `_redirects` não suporta o status 404.** Escreve-se a regra, o deploy passa, e
+o caminho continua a responder 200 — não há erro em lado nenhum.
+
+Pior: uma regra inválida **cala as seguintes**. Com cinco regras de 404 no topo do
+ficheiro, tudo a partir da regra 103 deixava de ser aplicado; removidas, as 229
+voltaram a funcionar. Se acrescentares regras e as últimas parecerem não existir,
+procura uma regra inválida acima delas antes de suspeitares de limites.
+
+Por isso o `/cgi-bin/` (sondagem de scanners a que o SPA respondeu 200 e o Google
+indexou) e o `/plan/4` continuam por resolver: um 301 para a homepage seria mentira
+e o Google lê-o como soft 404 na mesma.
 </Warning>
 
 ## Barra final: a regra que não podes partir

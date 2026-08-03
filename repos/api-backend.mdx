@@ -151,7 +151,13 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 
 ## Emails transacionais (`services/email.ts`)
 
-Resend por `fetch` direto, sem SDK. Todos saem do `fulfillPaidOrder()`:
+Resend por `fetch` direto, sem SDK. Saem de **`suporte@konecta.pt`** — o mesmo
+endereço que o site publica em `/contacto`, e por isso um que recebe respostas.
+Não uses `noreply@`: um remetente que anuncia que ninguém lê baixa a reputação do
+domínio, porque quem quer responder não tem outra saída senão marcar como spam.
+O Resend sinaliza isto no painel.
+
+Todos saem do `fulfillPaidOrder()`:
 
 | Email | Quando |
 |---|---|
@@ -161,8 +167,19 @@ Resend por `fetch` direto, sem SDK. Todos saem do `fulfillPaidOrder()`:
 
 ### O pedido de avaliação
 
-Aponta para `https://g.page/r/CUTUys3ErOTGEAE/review`, com botão como caminho
-principal e um QR para quem lê no computador.
+Aponta para `https://konecta.pt/avaliar`, com botão como caminho principal e um QR
+para quem lê no computador.
+
+<Warning>
+O link é o **nosso** domínio, não o `g.page` direto. Um email enviado de
+konecta.pt cujo único botão aponta para outro domínio parece phishing aos filtros
+de spam — o Resend sinaliza-o em **Needs attention**.
+
+O `/avaliar` é um 302 em `public/_redirects` no repo do
+[site](/repos/site) — **tem de estar em produção antes** de alterares o link no
+email, senão o botão dá 404. Sendo redirect, mudar o destino não obriga a reenviar
+nada: os emails já na caixa de entrada continuam a funcionar.
+</Warning>
 
 <Note>
 O atraso de 24h é do **Resend**, via `scheduled_at` (ISO 8601). Não há cron, nem

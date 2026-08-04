@@ -99,6 +99,38 @@ configurar mal. Com funções de rota própria o alcance é estrutural — só e
 caminhos passam pelo Worker, o resto do site continua estático.
 </Warning>
 
+## Links internos entre destinos
+
+Cada página de país mostra **oito destinos do mesmo continente** mais um link para
+`/destinations` — `src/components/RelatedDestinations.tsx`, espelhado em
+`scripts/prerender.mjs` para o crawler ver o mesmo na primeira resposta.
+
+<Warning>
+Até 04/08/2026 a página de um destino não tinha **um único link interno**, nem no
+HTML pré-renderizado nem no React. Quem chegava a `/pt/esim/grecia` vindo do Google
+só saía pelo cabeçalho, e o Google via as 210 páginas de país como folhas sem saída,
+todas a depender de um só link vindo de `/destinations`.
+
+Se mexeres no `PlanDetails.tsx`, não deixes cair o `<RelatedDestinations>` — a
+página volta a ser um beco e nada dá erro.
+</Warning>
+
+<Note>
+**Não ordenes os vizinhos por `plans_count`.** 42 dos 53 países europeus têm
+exatamente 31 planos, por isso a ordenação degenera em alfabética e a Grécia acaba
+a ligar para a Bielorrússia e para as Ilhas Faroé em vez de Espanha e Itália.
+
+A ordem vem de `src/lib/popular.json`, a mesma lista que alimenta a grelha de
+populares da home. Acrescentar um país aí muda os vizinhos em todo o site.
+</Note>
+
+## Listas partilhadas em `src/lib/*.json`
+
+`countries.pt.json`, `continents.json` e `popular.json` são JSON e não TypeScript
+por um motivo só: o `scripts/prerender.mjs` corre em **Node puro** e não consegue
+importar módulos TS. Se puseres uma destas listas dentro de um `.tsx`, o
+pré-render deixa de a ver e passa a divergir da app sem dar erro.
+
 ## Nomes de país em português (`src/lib/countries.pt.json`)
 
 Chave = slug do nome inglês que o provider devolve; valor = nome português. O valor

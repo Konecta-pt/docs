@@ -189,6 +189,20 @@ depois 512 kbps, 2 GB/dia no Plus e depois 2 Mbps. São os números já publicad
 blog.
 </Note>
 
+<Warning>
+**Estes blocos vivem dentro da coluna da esquerda, não a seguir à grelha.** O resumo
+do plano na barra lateral é `sticky`, e um elemento sticky nunca sai do bloco que o
+contém — desafixa-se quando o fundo do contentor o alcança.
+
+Postos a seguir à grelha de três colunas, a linha da grelha acabava no "Incluído em
+todos os planos" e a barra ficava presa aí, com meia página por descer e o botão de
+compra fora do ecrã.
+
+Pela mesma razão o `<DeviceCheck>` está **fora** do bloco `sticky`: lá dentro o bloco
+media 703px, quase o ecrã inteiro, e um sticky desafixa-se `altura` pixels antes do
+fim do contentor. Sem ele fica em 550px e o resumo acompanha até ao último bloco.
+</Warning>
+
 ### `src/lib/eu-roaming.json`
 
 Os 27 da UE mais Islândia, Listenstaine e Noruega. Decide qual dos dois parágrafos
@@ -279,17 +293,63 @@ Se algum dia voltares a escrever `index.html` dentro de uma pasta, o problema
 regressa sem dar erro nenhum.
 </Warning>
 
-## Preços em JSON-LD
+## Preços: IVA e formato
 
-Há duas funções de preço no prerender e **não são intermutáveis**:
+O catálogo devolve preços **sem IVA**; o site cobra **com IVA**. Toda a app passa
+pelo `grossEur()` do `src/lib/api.ts`.
 
-- `eur(cents, lang)` → `1,25` em PT e `1.25` em EN. Só para texto que uma pessoa lê.
-- `ld(cents)` → `1.25` sempre. Só para JSON-LD.
+<Warning>
+**O `scripts/prerender.mjs` não passava.** Durante meses o título, a description e
+o `lowPrice` do schema dos 210 destinos anunciaram o preço líquido: o Japão dizia
+"desde 1,11€" no Google e cobrava 1,37€ ao clicar.
+
+Não é uma gralha. Um `Product` com `lowPrice` abaixo do preço real é motivo para o
+Google desqualificar os resultados enriquecidos, e para o cliente é uma promessa que
+a página a seguir desmente. Qualquer preço que saia do prerender tem de passar pelo
+`withVat()` — as três funções abaixo já passam.
+</Warning>
+
+Há três funções de preço no prerender e **não são intermutáveis**:
+
+| Função | Devolve | Para |
+|---|---|---|
+| `eur(cents, lang)` | `1,37` em PT, `1.37` em EN | texto corrido que uma pessoa lê |
+| `ld(cents)` | `1.37` sempre | só JSON-LD |
+| `money(cents)` | `€1.37` sempre | tabelas, igual ao `grossEur()` da app |
 
 <Warning>
 O schema.org espera ponto decimal. Um `lowPrice: "350,80"` não é lido como número
 e o resultado sai sem faixa de preço. Nunca uses o `eur()` dentro de um bloco
 JSON-LD.
+</Warning>
+
+## O prerender lê o mesmo endpoint que a página
+
+<Warning>
+**Os dois endpoints de catálogo discordam.** O `/list_esims/countries` diz que o
+Japão tem 108 planos; o `/list_esims?country=Japan` devolve 64 — o filtro por país
+exclui um conjunto de pacotes. A página usa o segundo.
+
+Enquanto o prerender lia o catálogo paginado, o HTML prometia "108 planos, de 1,37€
+a 40,41€" a quem depois via 64 planos até 34,13€. Agora faz uma chamada por país
+(210 em ~6s, doze de cada vez), e a contagem, o mínimo, o máximo e o `offerCount` do
+schema batem certo com o que a pessoa vê.
+
+Se voltares ao catálogo paginado por causa da velocidade, os números voltam a
+divergir e nada dá erro.
+</Warning>
+
+## O nome do país tem de ser o localizado
+
+<Warning>
+O `PlanDetails.tsx` usava o nome cru da API — sempre em inglês — para **mostrar**.
+O `/pt/esim/japao` escrevia `<h1>Japan</h1>` e o título "eSIM para Japan" assim que
+o React montava, por cima do "Japão" que o prerender tinha escrito. O Google executa
+o JavaScript, por isso ficava com a versão inglesa numa página portuguesa, nas 210.
+
+Há duas variáveis e servem para coisas diferentes: `rawCountry` para procurar no
+catálogo e montar o slug, `countryName` (via `countryName()` do `src/lib/slug.ts`)
+para tudo o que aparece no ecrã.
 </Warning>
 
 ## O que falta no schema de produto

@@ -198,9 +198,10 @@ Postos a seguir à grelha de três colunas, a linha da grelha acabava no "Inclu�
 todos os planos" e a barra ficava presa aí, com meia página por descer e o botão de
 compra fora do ecrã.
 
-Pela mesma razão o `<DeviceCheck>` está **fora** do bloco `sticky`: lá dentro o bloco
-media 703px, quase o ecrã inteiro, e um sticky desafixa-se `altura` pixels antes do
-fim do contentor. Sem ele fica em 550px e o resumo acompanha até ao último bloco.
+O `<DeviceCheck>` fica **dentro** do bloco `sticky`, com o resumo. Chegou a estar
+fora, para encurtar o bloco — mas aí ficava parado no sítio do documento enquanto o
+cartão flutuava, e a certa altura o cartão passava-lhe por cima. Quem resolve o
+problema do scroll é a mudança de coluna acima, não encurtar este bloco.
 </Warning>
 
 ### `src/lib/eu-roaming.json`
@@ -212,6 +213,27 @@ de roaming a página mostra.
 **O Reino Unido não está na lista.** Saiu em 2020 e o roaming voltou a ser pago na
 maioria dos operadores — se o acrescentares, `/pt/esim/reino-unido` passa a dizer a
 um viajante que já tem dados incluídos quando não tem.
+</Note>
+
+## `/destinations` agrupado por continente
+
+O `scripts/prerender.mjs` escreve um `<h2>` por continente com os países desse grupo
+por baixo, em vez de uma lista corrida de 210 links. É o único sítio do site onde a
+hierarquia **início → continente → país** existe, e o Google lê os headings para a
+perceber.
+
+Dentro de cada grupo os populares vêm primeiro (`src/lib/popular.json`), o resto por
+ordem alfabética do nome já traduzido.
+
+<Note>
+**Não há páginas `/esim/europa`, e é deliberado.** Nenhum dos 5737 produtos ativos é
+regional ou global — são todos de um país só. Quem pesquisa "eSIM Europa" quer **um**
+eSIM que funcione em toda a Europa; mandar essa pessoa para uma lista de 53 países é
+um bounce, e sugerir-lhe o contrário é mentira.
+
+Se um dia entrar um produto regional no catálogo, aí a página passa a fazer sentido.
+Verifica primeiro com `/api/v1/konecta/list_esims` se existe algum sem `country_code`
+de país único.
 </Note>
 
 ## Links internos entre destinos
@@ -241,10 +263,25 @@ populares da home. Acrescentar um país aí muda os vizinhos em todo o site.
 
 ## Listas partilhadas em `src/lib/*.json`
 
-`countries.pt.json`, `continents.json` e `popular.json` são JSON e não TypeScript
-por um motivo só: o `scripts/prerender.mjs` corre em **Node puro** e não consegue
-importar módulos TS. Se puseres uma destas listas dentro de um `.tsx`, o
+`countries.pt.json`, `continents.json`, `popular.json` e `eu-roaming.json` são JSON e
+não TypeScript por um motivo só: o `scripts/prerender.mjs` corre em **Node puro** e
+não consegue importar módulos TS. Se puseres uma destas listas dentro de um `.tsx`, o
 pré-render deixa de a ver e passa a divergir da app sem dar erro.
+
+<Warning>
+**Um país que falte no `continents.json` desaparece de duas coisas ao mesmo tempo.**
+O `RelatedDestinations` não encontra continente e devolve `null` — a página fica sem
+vizinhos, um beco sem saída — e o `/destinations` atira-o para um grupo "Outros
+destinos" que não quer dizer nada.
+
+Aconteceu com treze: Bermudas, Canárias, Curaçao, Gronelândia, Guernsey, Havai, Ilha
+de Man, Jersey, Maiote, Monserrate, Palestina, Sint Maarten e Sara Ocidental. Não deu
+erro nenhum — a página respondia 200 e simplesmente não tinha a secção.
+
+O ficheiro inclui territórios que não são países e dois códigos que não são ISO
+alpha-2 (`IC` para as Canárias, `US-HI` para o Havai), porque é assim que o provider
+os devolve. Se acrescentares um destino ao catálogo, acrescenta-o aqui também.
+</Warning>
 
 ## Nomes de país em português (`src/lib/countries.pt.json`)
 

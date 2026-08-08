@@ -26,7 +26,9 @@ fallback do SPA.
 | Rota | Destino | |
 |---|---|---|
 | `/avaliar` | `https://g.page/r/CUTUys3ErOTGEAE/review` | 302 |
-| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (229 regras) |
+| `/<rota>` sem idioma | `/pt/<rota>` | 301 (18 regras) |
+| `/en/terms`, `/en/privacy` | `/pt/terms`, `/pt/privacy` | 301 |
+| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (500 regras) |
 
 <Note>
 O `/avaliar` não existe para o site — existe para o **email de pedido de avaliação**
@@ -39,7 +41,19 @@ enviados apontam para aqui.
 </Note>
 
 <Warning>
-As 113 regras de slug existem porque o router aceita **qualquer** slug debaixo de
+**Os URLs sem prefixo de idioma têm de ser 301, não podem ficar no cliente.** O
+`LanguageRedirect` do `App.tsx` manda `/privacy` para o idioma do visitante, mas
+só depois do JavaScript correr. O que sai do servidor é o `dist/index.html` — a
+home portuguesa, com o título da home e canonical para `/pt`. Um crawler pede
+`/privacy` e recebe a home: a Search Console classificou isso como **Soft 404** a
+08/08/2026, e ao `/destinations?continent=africa` também.
+
+Vão para `/pt` e não para o idioma detetado porque um ficheiro estático não deteta
+nada, e `/pt` é o que o `x-default` já anuncia.
+</Warning>
+
+<Warning>
+As 500 regras de slug existem porque o router aceita **qualquer** slug debaixo de
 qualquer idioma. `/pt/esim/algeria` (nome inglês em português) não está no sitemap
 mas respondia **200** com o shell do SPA — um soft 404. Cada país existia assim em
 quatro endereços, e o Google chegou a indexar `/pt/esim/japan/`, `/en/esim/irlanda`
@@ -98,6 +112,54 @@ frente de **todos** os pedidos, e limitá-lo obriga a um `_routes.json` que se p
 configurar mal. Com funções de rota própria o alcance é estrutural — só estes
 caminhos passam pelo Worker, o resto do site continua estático.
 </Warning>
+
+## Tudo o que está no sitemap tem de ser pré-renderizado
+
+O `scripts/prerender.mjs` escreve um ficheiro por rota. As que não escreve não
+existem como ficheiro, e a Pages responde-lhes com o `dist/index.html` — que é a
+**home portuguesa**.
+
+<Warning>
+Uma página no sitemap sem HTML próprio não dá erro nenhum: responde 200, com o
+título da home, a description da home e canonical para `/pt`. O Google pede N URLs
+distintos e recebe N cópias da mesma página.
+
+Foi o que aconteceu a `/business`, `/vpn`, `/help`, `/about`, `/contact`, `/terms`
+e `/privacy` — catorze URLs no sitemap, catorze cópias da home. No relatório de
+08/08/2026 apareceram como **"Rastreada, atualmente não indexada"** (`/pt/business`)
+e **"duplicada, o Google escolheu uma canónica diferente"** (`/en/terms`,
+`/en/privacy`).
+
+A build passava, o deploy passava, e o problema só aparecia semanas depois na
+Search Console. Por isso o prerender agora **falha a build** se algum `<loc>` do
+sitemap não tiver ficheiro. Se acrescentares um caminho ao `STATIC` do
+`build-seo.mjs`, acrescenta-o também ao `STATIC_PAGES` do `prerender.mjs` — a build
+diz-te se te esqueceres.
+</Warning>
+
+<Note>
+**`/terms` e `/privacy` só existem em português.** O texto legal está escrito em
+português e não está traduzido, por isso `/en/terms` servia palavra por palavra o
+mesmo que `/pt/terms`. Saíram do sitemap (`langs: ['pt']` no `STATIC`), ganharam
+301, e o hreflang deixou de anunciar o par — nos dois sítios: no HTML servido
+(`altLangs` no `prerender.mjs`) e no runtime (`PT_ONLY` em `src/lib/i18n-core.tsx`).
+
+Se traduzires os textos legais, tens de mexer nos três.
+</Note>
+
+## `robots.txt` — o login está bloqueado de propósito
+
+Também gerado pelo `build-seo.mjs`. Além das áreas com sessão (`/esims`, `/orders`,
+`/invoices`, `/profile`, `/checkout`, `/success`, `/auth`) e do `/instalar`, bloqueia
+`/*/login` e `/*/register`.
+
+<Note>
+O botão de comprar leva ao login com o destino no parâmetro:
+`/pt/login?redirect=/esim/turquia`. Há um por cada uma das 210 páginas de país, e
+aos olhos do crawler cada um é um URL novo. A 08/08/2026 o Google tinha rastreado
+**47** — 47 pedidos gastos no mesmo formulário para chegar sempre ao mesmo sítio.
+Não há nada para indexar lá.
+</Note>
 
 ## Links internos entre destinos
 

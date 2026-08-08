@@ -161,6 +161,45 @@ aos olhos do crawler cada um é um URL novo. A 08/08/2026 o Google tinha rastrea
 Não há nada para indexar lá.
 </Note>
 
+## Conteúdo da página de destino
+
+Cada página de país mostra, por baixo dos planos: roaming, tabela de planos reais,
+quantos GB precisas, como instalar e uma FAQ de seis perguntas com schema
+`FAQPage`. Está em `src/components/DestinationContent.tsx` e espelhado no
+`scripts/prerender.mjs`, para o crawler ler o mesmo na primeira resposta.
+
+<Warning>
+Até 08/08/2026 a página de um destino tinha um H1 com o nome do país, seis bullets
+iguais nas 210 páginas, e uma lista de planos que **só existe depois de a API
+responder**. Treze destinos ficaram em "Rastreada, atualmente não indexada" — o
+Google viu-as e decidiu que não valiam um lugar no índice.
+
+Passaram de ~120 para ~630 palavras. Se mexeres no `PlanDetails.tsx`, não deixes
+cair o `<DestinationContent>`: a página volta ao que era e nada dá erro.
+</Warning>
+
+<Note>
+**O que não está lá, de propósito:** operadoras parceiras, cobertura 5G e velocidade
+por país. Não há forma de confirmar isso destino a destino, e é o tipo de detalhe
+que o cliente descobre no aeroporto. O que varia por país e é verdade são os planos,
+os preços e o roaming — e é só isso que a página afirma.
+
+A resposta sobre planos ilimitados diz a franquia real: 1 GB/dia no Standard e
+depois 512 kbps, 2 GB/dia no Plus e depois 2 Mbps. São os números já publicados no
+blog.
+</Note>
+
+### `src/lib/eu-roaming.json`
+
+Os 27 da UE mais Islândia, Listenstaine e Noruega. Decide qual dos dois parágrafos
+de roaming a página mostra.
+
+<Note>
+**O Reino Unido não está na lista.** Saiu em 2020 e o roaming voltou a ser pago na
+maioria dos operadores — se o acrescentares, `/pt/esim/reino-unido` passa a dizer a
+um viajante que já tem dados incluídos quando não tem.
+</Note>
+
 ## Links internos entre destinos
 
 Cada página de país mostra **oito destinos do mesmo continente** mais um link para

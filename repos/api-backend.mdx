@@ -159,11 +159,29 @@ O Resend sinaliza isto no painel.
 
 Todos saem do `fulfillPaidOrder()`:
 
-| Email | Quando |
-|---|---|
-| Pagamento confirmado | na primeira transição da encomenda para `paid` |
-| eSIM pronto | quando existe código de ativação real |
-| **Pedido de avaliação no Google** | **agendado para +24h**, a seguir ao eSIM pronto |
+| Email | Para quem | Quando |
+|---|---|---|
+| Pagamento confirmado | cliente | na primeira transição da encomenda para `paid` |
+| **Nova encomenda** | **`konecta.pt@gmail.com`** | na primeira transição para `paid` |
+| eSIM pronto | cliente | quando existe código de ativação real |
+| **Pedido de avaliação no Google** | cliente | **agendado para +24h**, a seguir ao eSIM pronto |
+
+### O aviso interno de nova encomenda
+
+`sendNewOrderAdminEmail()` avisa a Konecta de cada venda paga: cliente, email,
+destino, produto, dados, validade, total, moeda e o `payment_intent` da Stripe.
+O destinatário está fixo no código (`ADMIN_EMAIL`), não é secret nem variável.
+
+O `reply_to` é o email do cliente — responder ao aviso responde-lhe diretamente.
+
+<Warning>
+Sai **antes** do provisionamento, por isso **não traz ICCID nem código de ativação**:
+nessa altura ainda não existem. O estado do eSIM vê-se no dashboard.
+
+É o único email fora da condição `&& userEmail`: mesmo sem email do cliente em
+ficheiro, a venda tem de ser reportada. Tem `Idempotency-Key`
+(`admin-order:<order_id>`), por isso um fulfillment repetido não gera dois avisos.
+</Warning>
 
 ### O pedido de avaliação
 
@@ -201,7 +219,8 @@ correu duas vezes para a mesma encomenda, e sem isto seriam dois pedidos de aval
 Para ver os emails sem fazer uma compra, põe `RESEND_API_KEY` e `PREVIEW_EMAIL` em
 `workers/.dev.vars` e corre `npx vitest run src/services/email.preview.test.ts` — envia
 os três a sério (o de avaliação agendado para +2 min) e escreve o HTML em
-`email-preview.html`.
+`email-preview.html`. O aviso interno não é enviado a sério pelo preview — é
+verificado offline (destinatário, `reply_to` e dados da venda).
 
 ## Segundo worker no mesmo repo
 

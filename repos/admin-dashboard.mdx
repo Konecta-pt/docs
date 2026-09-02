@@ -74,6 +74,47 @@ com `?continent=` ou `?search=` mais `?promo=`. Duas coisas partem-no em silênc
   link sai **sem filtro** — o código continua válido, só não pré-filtra os destinos.
 </Warning>
 
+## Auditoria de SEO e GEO
+
+A página **SEO & GEO** tem dois separadores:
+
+- **Site** — o worker lê o `sitemap.xml`, o `robots.txt` e uma amostra de páginas do
+  konecta.pt e devolve achados em três áreas: indexação, conteúdo e GEO. Cada achado
+  traz **porquê** e **como corrigir**, não só um sinal. Não precisa de credenciais.
+- **Página** — o Lighthouse de sempre, via PageSpeed, para um URL.
+
+<Note>
+A auditoria corre no **worker** (`functions/_lib/seo-audit.ts`) e não no browser: o
+painel está em `admin.konecta.pt`, o site em `konecta.pt`, e o site não emite CORS
+para HTML. Do browser não se lê uma única página.
+</Note>
+
+### Search Console
+
+`functions/_lib/search-console.ts`, autenticado por **service account** (JWT RS256 →
+access token, assinado com a Web Crypto API). Precisa de dois secrets no worker:
+
+| Secret | O quê |
+|---|---|
+| `GSC_SERVICE_ACCOUNT_JSON` | o JSON inteiro da service account |
+| `GSC_SITE_URL` | a propriedade exata: `https://konecta.pt/` ou `sc-domain:konecta.pt` |
+
+A service account tem de ser adicionada como **Leitor** em Search Console →
+Definições → Utilizadores e permissões. Sem os secrets, a página mostra os passos de
+setup em vez de rebentar.
+
+<Warning>
+**A API da Search Console não expõe o relatório de Cobertura.** Os números agregados
+("398 páginas com redirecionamento", "160 duplicadas com canónica diferente") só
+existem no interface web do Google. Por API há duas coisas: *Search Analytics*
+(cliques, impressões, posição) e *URL Inspection*, que dá o estado de **um** URL de
+cada vez com quota de 2000/dia.
+
+Por isso o painel inspeciona só uma amostra, a pedido — e é aí que se apanha o caso
+que nenhum outro relatório mostra: o Google ter escolhido uma canónica diferente da
+declarada pela página.
+</Warning>
+
 ## A API admin (`functions/_lib/app.ts`)
 
 É uma API **same-origin**: não emite CORS permissivo, por isso o browser bloqueia

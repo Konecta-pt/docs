@@ -45,7 +45,7 @@ de extraída.
 | `orders` | `id` varchar PK, `user_id`, `esim_product_id`, `price_cents`, `original_price_cents`, `status` (`order_status`), `payment_method`, `payment_intent_id`, `session_id`, `promo_code_id`, `refunded_cents` | |
 | `payments` | `payment_intent_id`, `amount_cents`, `status` (`payment_status`), `gateway_response` jsonb, `refunded_cents` | |
 | `invoices` | `id` d. `inv_<uuid>`, `invoice_number`, `amount_cents`, `tax_amount_cents`, `status` (`invoice_status`), `pdf_path`, `sent_at`, `paid_at` | criadas no `fulfillPaidOrder` |
-| `esims` | `id` varchar PK, `iccid`, `msisdn`, `qr_code`, `activation_code`, `status` (`esim_status`), `data_limit_mb`, `data_used_mb`, `usage_alert_pct` (`0`\|`80`\|`100`, d. 0), `provider_esim_id` | `usage_alert_pct` = último aviso de consumo enviado; escrito pelo cron do [API-BACKEND](/repos/api-backend) |
+| `esims` | `id` varchar PK, `iccid`, `msisdn`, `qr_code`, `activation_code`, `status` (`esim_status`), `data_limit_mb`, `data_used_mb`, `usage_alert_pct` (`0`\|`80`\|`100`, d. 0), `install_reminder_at`, `provider_esim_id` | `usage_alert_pct` = último aviso de consumo enviado; `install_reminder_at` = quando saiu o lembrete de instalação (null = ainda não). Ambos escritos pelo cron do [API-BACKEND](/repos/api-backend) |
 | `esim_events` | `esim_id`, `event_type`, `detail`, `metadata` jsonb | trilho de auditoria do ciclo de vida |
 
 `price_is_custom` protege um preço editado à mão de ser esmagado pelo próximo sync

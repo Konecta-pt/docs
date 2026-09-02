@@ -20,9 +20,23 @@ Functions** (Hono) em `functions/`. Protegido por **Cloudflare Access**.
 
 ## Páginas (`src/pages`)
 
-Overview (mapa de países), Orders, Payments, **Stripe**, Invoices, ESIMs, Products,
-Campaigns, PromoCodes, Competitors, SEO, Infra (OneUptime), Customers, Support
-(chat live), Emails, Notifications, Referrals, Reviews, Settings.
+Overview (mapa de países), Orders, **Stripe**, Invoices, ESIMs, Products, Campaigns,
+PromoCodes, Competitors, SEO, Customers, Support (chat live), Emails, Notifications,
+Referrals, Reviews, Settings.
+
+<Note>
+**Payments e Infra deixaram de existir** (2026-09-02). A página Payments listava
+exatamente os mesmos pedidos que Orders — as duas chamavam `getOrders()` — por isso o
+que tinha a mais mudou de casa: o **filtro por método** para a barra de Orders e o
+botão **Reembolsar** para o detalhe do pedido, onde se vê o cliente e o eSIM antes de
+carregar num botão irreversível.
+
+Os KPIs de receita dessa página **não** foram aproveitados: eram calculados sobre os
+primeiros 100 pedidos, portanto a "Receita total" estava errada em qualquer loja com
+mais de 100 encomendas. O valor certo está no Overview, vindo do `getDashboardStats()`.
+
+A Infra eram 53 linhas com dois links do OneUptime — estão no cabeçalho de Settings.
+</Note>
 
 ## Códigos promocionais com âmbito e cards de campanha
 

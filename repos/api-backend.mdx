@@ -149,14 +149,54 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 **"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
 </Note>
 
+## Cron do worker
+
+`*/15 * * * *` → `runUsageAlerts()` + `runInstallReminders()`. É o único cron deste
+worker e faz duas coisas: os avisos de consumo e o lembrete de instalação.
+
+Vive aqui e não no [API-ESIMS](/repos/api-esims), que é quem sincroniza o estado dos
+eSIMs, porque é aqui que estão a chave do Resend e os templates. Partilham a base de
+dados: o API-ESIMS escreve `esims.data_used_mb` e `esims.activated_at`, este lê.
+
+<Warning>
+`[env.development.triggers] crons = []`: o ambiente de dev usa a **mesma base de dados
+de produção**, e um cron lá enviava os emails aos clientes uma segunda vez (com outra
+chave de idempotência, portanto a sério).
+</Warning>
+
+## Lembrete de instalação (~1h depois da compra)
+
+Enviado só a quem **ainda não instalou** — e a verificação é feita na hora do envio,
+não na da compra.
+
+<Note>
+É por isto que é um cron e **não** um email agendado no Resend com `scheduled_at`: um
+agendamento decide no momento da compra e não sabe o que aconteceu na hora seguinte.
+Quem instalou entretanto receberia à mesma um email a dizer que não instalou.
+</Note>
+
+"Instalado" = `esims.activated_at` preenchido, que é o que o sync do API-ESIMS escreve
+quando o provider diz que o pacote foi ativado. O envio fica marcado em
+`esims.install_reminder_at`, escrito **sempre** — mesmo quando não há email do cliente
+em ficheiro, senão o cron voltava àquele eSIM de 15 em 15 minutos para sempre.
+
+<Warning>
+A cadência do cron é o que define o atraso real: com `*/15` o lembrete sai entre
+**1h00 e 1h15** depois da compra. Baixar a frequência do cron atrasa o email.
+
+A migration `add_esim_install_reminder.sql` marca os eSIMs **já existentes** como
+lembrados. Sem isso, a primeira passagem mandava um lembrete a toda a gente que
+comprou e nunca instalou, incluindo compras de há meses.
+</Warning>
+
+O código de ativação viaja no **fragmento** do URL (`konecta.pt/instalar?l=pt#LPA:...`),
+igual ao email de entrega, e não aparece no corpo do email — uma caixa de entrada
+guarda-o para sempre e quem o tiver instala o eSIM.
+
 ## Avisos de consumo de dados (cron)
 
-O único cron deste worker: `*/30 * * * *` → `runUsageAlerts()`. Avisa o cliente aos
-**80%** e aos **100%** dos dados do plano, por email e com notificação na App.
-
-Vive aqui e não no [API-ESIMS](/repos/api-esims), que é quem sincroniza o consumo,
-porque é aqui que estão a chave do Resend e os templates. Partilham a base de dados:
-o API-ESIMS escreve `esims.data_used_mb`, este lê.
+`runUsageAlerts()` avisa o cliente aos **80%** e aos **100%** dos dados do plano, por
+email e com notificação na App.
 
 <Note>
 O botão do email abre `konecta.pt/esims/<id>` — a [recarga na página do eSIM](/repos/site),
@@ -174,9 +214,6 @@ pelo dos 80% e o cliente nunca saberia que ficou sem dados.
 A migration `add_esim_usage_alert.sql` marca os eSIMs **já gastos** como avisados —
 sem isso, a primeira passagem do cron mandava avisos retroativos a toda a gente.
 
-`[env.development.triggers] crons = []`: o ambiente de dev usa a **mesma base de
-dados de produção**, e um cron lá enviava os avisos ao cliente uma segunda vez (com
-outra chave de idempotência, portanto a sério).
 </Warning>
 
 Planos ilimitados (`data_limit_mb` ≥ 999990, ou ≤ 0) nunca geram aviso.
@@ -237,9 +274,10 @@ Todos saem do `fulfillPaidOrder()`:
 | eSIM pronto | cliente | quando existe código de ativação real |
 | **Pedido de avaliação no Google** | cliente | **agendado para +24h**, a seguir ao eSIM pronto |
 | **Aviso de consumo** | cliente | pelo **cron**, aos 80% e aos 100% dos dados |
+| **Lembrete de instalação** | cliente | pelo **cron**, ~1h depois da compra, **só a quem ainda não instalou** |
 
-Os quatro primeiros saem do `fulfillPaidOrder()`. O aviso de consumo é o único que
-não: sai do cron, em `services/usage-alerts.ts`.
+Os quatro primeiros saem do `fulfillPaidOrder()`. Os dois últimos saem do **cron**,
+em `services/usage-alerts.ts`.
 
 ### O aviso interno de nova encomenda
 

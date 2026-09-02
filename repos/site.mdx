@@ -236,6 +236,27 @@ Verifica primeiro com `/api/v1/konecta/list_esims` se existe algum sem `country_
 de país único.
 </Note>
 
+## Imagens de país: a cadeia de fallback
+
+Cada destino tem uma foto em `cdn.konecta.pt/images/countries/<ISO>.jpg`. Quando
+falta, entra a bandeira do `flagcdn`, e se essa também falhar entra um **SVG inline**
+(`COUNTRY_IMG_FALLBACK` em `src/lib/api.ts`). Os três degraus são precisos:
+
+<Warning>
+Nem todos os destinos do catálogo têm código ISO real. As **Ilhas Canárias** são
+`IC`, que o `flagcdn` não serve — sem o terceiro degrau o cartão ficava com a imagem
+partida. O `onError` de um `<img>` **não volta a disparar** depois de já teres trocado
+o `src` uma vez, por isso a cadeia tem de ser explícita: foto → bandeira → placeholder.
+</Warning>
+
+<Warning>
+Na página do plano, o parâmetro do URL é o **slug** (`portugal`), não o código ISO.
+Passá-lo às funções de imagem dava `flagcdn.com/w1280/po.png` (as duas primeiras
+letras do slug), que não existe — o hero **nunca** mostrava o país escolhido, e nos
+casos em que o slug começava por um código válido (`espanha` → `es`) mostrava a
+bandeira **errada**. O código a sério vem de `resolved.country_code`.
+</Warning>
+
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
 O `?promo=` é lido em `/destinations` e na página do plano e guardado em

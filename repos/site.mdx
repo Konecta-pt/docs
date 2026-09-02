@@ -239,15 +239,31 @@ de país único.
 ## Imagens de país: a cadeia de fallback
 
 Cada destino tem uma foto em `cdn.konecta.pt/images/countries/<ISO>.jpg`. Quando
-falta, entra a bandeira do `flagcdn`, e se essa também falhar entra um **SVG inline**
-(`COUNTRY_IMG_FALLBACK` em `src/lib/api.ts`). Os três degraus são precisos:
+falta, entra a bandeira do `flagcdn` (via `flagUrl()`), e se essa também falhar entra
+um **SVG inline** (`COUNTRY_IMG_FALLBACK`). Ambos vivem em `src/lib/api.ts`.
+
+<Note>
+**Não há lista de países "com foto".** Havia duas (`HERO`, `COUNTRY_PHOTOS`) e o que
+faziam era mandar ~190 países para a bandeira quando o CDN tinha foto para eles. A
+tentativa é sempre o CDN; quem não tiver desce sozinho na cadeia.
+</Note>
 
 <Warning>
-Nem todos os destinos do catálogo têm código ISO real. As **Ilhas Canárias** são
-`IC`, que o `flagcdn` não serve — sem o terceiro degrau o cartão ficava com a imagem
-partida. O `onError` de um `<img>` **não volta a disparar** depois de já teres trocado
-o `src` uma vez, por isso a cadeia tem de ser explícita: foto → bandeira → placeholder.
+Nem todos os destinos do catálogo têm código ISO real — as **Ilhas Canárias** são
+`IC`, que o `flagcdn` não serve. O `FLAG_ALIAS` mapeia `IC → ES`; para um código sem
+alias sobra o placeholder.
+
+O `onError` de um `<img>` **não volta a disparar** depois de já teres trocado o `src`
+uma vez, por isso a cadeia tem de ser explícita dentro do próprio handler:
+foto → bandeira → placeholder.
 </Warning>
+
+<Note>
+O `image_url` dos produtos está **todo a `NULL` desde 2026-09-02**, de propósito. Vinha
+do importador com thumbnails do Google (`&s=10`) e imagens inteiras em base64 — 3,5MB
+de payload em 371 linhas, que o frontend descartava à mesma para reconstruir o URL do
+CDN. Se voltar a aparecer valor nessa coluna, é um importador a escrevê-lo.
+</Note>
 
 <Warning>
 Na página do plano, o parâmetro do URL é o **slug** (`portugal`), não o código ISO.

@@ -149,6 +149,38 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 **"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
 </Note>
 
+## Avisos de consumo de dados (cron)
+
+O único cron deste worker: `*/30 * * * *` → `runUsageAlerts()`. Avisa o cliente aos
+**80%** e aos **100%** dos dados do plano, por email e com notificação na App.
+
+Vive aqui e não no [API-ESIMS](/repos/api-esims), que é quem sincroniza o consumo,
+porque é aqui que estão a chave do Resend e os templates. Partilham a base de dados:
+o API-ESIMS escreve `esims.data_used_mb`, este lê.
+
+<Note>
+O botão do email leva aos **planos daquele destino**, não a uma recarga: não existe
+recarga no site (a App tem `/esim/:id/topup-options`, o site não). É também por isso
+que o aviso dos 80% é o que conta — aos 100% o cliente já está sem net e não compra.
+</Note>
+
+<Warning>
+O estado vive em `esims.usage_alert_pct` (`0` → `80` → `100`) e é escrito **depois**
+de enviar. Se a escrita falhar, o cron tenta outra vez na passagem seguinte e quem
+trava o email repetido é a `Idempotency-Key` do Resend (`usage:<esim_id>:<nível>`).
+O nível faz parte da chave de propósito: sem ele, o aviso dos 100% seria travado
+pelo dos 80% e o cliente nunca saberia que ficou sem dados.
+
+A migration `add_esim_usage_alert.sql` marca os eSIMs **já gastos** como avisados —
+sem isso, a primeira passagem do cron mandava avisos retroativos a toda a gente.
+
+`[env.development.triggers] crons = []`: o ambiente de dev usa a **mesma base de
+dados de produção**, e um cron lá enviava os avisos ao cliente uma segunda vez (com
+outra chave de idempotência, portanto a sério).
+</Warning>
+
+Planos ilimitados (`data_limit_mb` ≥ 999990, ou ≤ 0) nunca geram aviso.
+
 ## Âmbito geográfico dos códigos promocionais
 
 Um código pode valer para tudo (`global`), para um continente, para um país ou para
@@ -204,6 +236,10 @@ Todos saem do `fulfillPaidOrder()`:
 | **Nova encomenda** | **`konecta.pt@gmail.com`** | na primeira transição para `paid` |
 | eSIM pronto | cliente | quando existe código de ativação real |
 | **Pedido de avaliação no Google** | cliente | **agendado para +24h**, a seguir ao eSIM pronto |
+| **Aviso de consumo** | cliente | pelo **cron**, aos 80% e aos 100% dos dados |
+
+Os quatro primeiros saem do `fulfillPaidOrder()`. O aviso de consumo é o único que
+não: sai do cron, em `services/usage-alerts.ts`.
 
 ### O aviso interno de nova encomenda
 

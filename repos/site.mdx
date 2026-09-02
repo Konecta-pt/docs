@@ -113,6 +113,37 @@ configurar mal. Com funções de rota própria o alcance é estrutural — só e
 caminhos passam pelo Worker, o resto do site continua estático.
 </Warning>
 
+## A migração de URLs de 04/08/2026 — o que ela fez às impressões
+
+O prerender passou a escrever `pt/esim/grecia.html` em vez de `pt/esim/grecia/index.html`.
+A Pages serve a primeira forma em `/grecia` e a segunda em `/grecia/`, por isso o URL
+servido mudou — e o canonical e o sitemap, que sempre disseram `/grecia`, passaram a
+bater certo. Era o objetivo.
+
+<Warning>
+**A consequência foi uma queda de impressões, e é esperada.** Todos os URLs que o
+Google tinha indexados com barra final passaram a 308. No export de 02/09 isso aparece
+como **398 "Página com redirecionamento"** (249 com barra + 149 de slug do idioma
+errado) e **160 "duplicada, o Google escolheu outra canónica"** (158 com barra).
+
+Números (média diária, Search Console):
+
+| Período | Impressões/dia | Posição média |
+|---|---|---|
+| 20/07–03/08 (antes) | 38,6 | 55,5 |
+| 04/08–10/08 (deploy) | 35,7 | 63,0 |
+| 11/08–20/08 | 13,9 | 41,9 |
+| 21/08–30/08 | 8,7 | **29,8** |
+
+As impressões caíram ~78% mas a **posição média melhorou para quase metade**. É o que
+acontece quando se junta o sinal: deixaram de aparecer 400 URLs duplicados na posição
+60–80 (`/pt/esim/luxemburgo/` sozinho valia 85 impressões na posição 61), e ficaram os
+canónicos, que rankeiam muito melhor. Impressões perdidas na página 7 não valiam nada.
+
+Não voltes a "validar a correção" na Search Console para estes URLs: eles vão
+continuar a redirecionar para sempre, por isso a validação falha sempre.
+</Warning>
+
 ## Tudo o que está no sitemap tem de ser pré-renderizado
 
 O `scripts/prerender.mjs` escreve um ficheiro por rota. As que não escreve não
@@ -294,6 +325,14 @@ já resolvido.
 
 Os preços vêm do catálogo **líquidos** — o `grossEur()` é que mostra o valor com IVA,
 igual ao resto do site.
+
+## Sitemap sem `lastmod` nos destinos
+
+Só o blog leva `lastmod`, porque só ele tem uma data verdadeira. As páginas de destino
+levavam a data do **build**: um deploy de CSS reescrevia 420 datas para "hoje" e
+anunciava que todos os destinos tinham mudado. Uma data que muda sempre não distingue
+nada — e o Google acaba por ignorar as datas do ficheiro inteiro, incluindo as do blog.
+Sem data é melhor do que com data falsa.
 
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 

@@ -55,10 +55,10 @@ de extraída.
 
 | Tabela | Colunas-chave | Notas |
 | --- | --- | --- |
-| `promo_codes` | `code`, `discount_type` (**`percentage` \| `fixed`**), `discount_value`, `min_order_cents`, `max_uses`, `uses_count`, `expires_at` | `fixed` = cêntimos; `percentage` = 0-100 |
+| `promo_codes` | `code`, `discount_type` (**`percentage` \| `fixed`**), `discount_value`, `min_order_cents`, `max_uses`, `uses_count`, `expires_at`, `scope_type` (**`global` \| `continent` \| `country`**, d. `global`), `scope_value` | `fixed` = cêntimos; `percentage` = 0-100. `scope_value`: id do continente em minúsculas (`europe`, `asia`, `americas`, `africa`, `oceania`) ou ISO alpha-2 em maiúsculas (`FR`) |
 | `referral_uses` | `referrer_user_id`, `referred_user_id`, `referral_code`, `discount_cents` (d. 300) | um utilizador só pode ser referido uma vez |
 | `reviews` | `user_id`, `esim_id`, `order_id`, `rating` smallint, `comment` | |
-| `campaigns` | `title`, `badge`, `badge_color` (d. `#E71A5F`), `image_url`, `esim_product_id`, `country_code`, `starts_at`, `ends_at`, `sort_order` | banners da home |
+| `campaigns` | `title`, `badge`, `badge_color` (d. `#E71A5F`), `image_url`, `esim_product_id`, `country_code`, `promo_code`, `starts_at`, `ends_at`, `sort_order` | banners da home. `promo_code` guarda o **código em texto**, não um FK — apagar o código não parte o card |
 | `chat_conversations` | `user_id`, `status` (d. `open`), `last_message`, `unread_admin`, `unread_user` | suporte live |
 | `chat_messages` | `conversation_id`, `sender_type`, `content`, `read_at` | |
 

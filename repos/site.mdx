@@ -236,6 +236,28 @@ Verifica primeiro com `/api/v1/konecta/list_esims` se existe algum sem `country_
 de país único.
 </Note>
 
+## Códigos promocionais que chegam pelo link (`?promo=`)
+
+O `?promo=` é lido em `/destinations` e na página do plano e guardado em
+**`sessionStorage`** (`src/lib/promo.ts`, chave `konecta_pending_promo`). Tem de ser
+guardado porque o cliente aterra na lista e só chega ao input do código mais tarde —
+e pelo caminho o filtro de continente reescreve a query, levando o parâmetro com ela.
+Na página do plano o código é preenchido e aplicado sozinho, **exceto** se o cliente
+já tiver escrito um à mão. Sai da sessão com `clearPendingPromo()` depois da compra.
+
+Os cards da home (`CampaignsBanner`) juntam o parâmetro ao link quando a campanha tem
+`promo_code`, e é o mesmo parâmetro dos links gerados no painel de admin.
+
+O `validatePromo()` envia o `product_id` junto com o código, porque um código pode
+valer só para um continente ou país: sem o produto, o servidor não consegue verificar
+o âmbito no preview. O desconto real é sempre recalculado no `/order/checkout`.
+
+<Note>
+O preview é só informação. Um código fora de âmbito devolve **400 `OUT_OF_SCOPE`**
+com a mensagem em português vinda do backend — a página mostra um erro genérico
+traduzido em vez do texto do servidor.
+</Note>
+
 ## Links internos entre destinos
 
 Cada página de país mostra **oito destinos do mesmo continente** mais um link para

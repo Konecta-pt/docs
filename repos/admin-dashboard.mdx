@@ -24,6 +24,34 @@ Overview (mapa de países), Orders, Payments, **Stripe**, Invoices, ESIMs, Produ
 Campaigns, PromoCodes, Competitors, SEO, Infra (OneUptime), Customers, Support
 (chat live), Emails, Notifications, Referrals, Reviews, Settings.
 
+## Códigos promocionais com âmbito e cards de campanha
+
+Em **Promo Codes**, o `PromoScopeFields` escolhe o âmbito do código: **Todos**,
+**Continente** ou **País** (grava `scope_type`/`scope_value`; o backend é quem
+aplica — ver [API-BACKEND](/repos/api-backend)). Na tabela, um código com âmbito
+mostra `âmbito: <valor>` por baixo do código.
+
+Em **Campaigns**, o formulário do card tem **Código de desconto (opcional)**: só
+lista códigos ativos e grava o código em texto em `campaigns.promo_code`. O card
+na home passa a abrir os destinos com `?promo=` já aplicado.
+
+<Note>
+As listas de continentes e países **não são fixas** — saem dos `esim_products`
+ativos (`PromoScopeFields` lê a tabela e cruza com `src/lib/continents.json`).
+Um continente sem produtos no catálogo não aparece, para não criares um código
+que nunca dá desconto a ninguém.
+</Note>
+
+<Warning>
+O `CampaignLinkPanel` constrói o link partilhável para `https://konecta.pt/pt/destinations`
+com `?continent=` ou `?search=` mais `?promo=`. Duas coisas partem-no em silêncio:
+
+- O prefixo **`/pt/`** e os nomes dos parâmetros têm de bater certo com o site. Mudar
+  a rota de destinos no repo [konecta.pt](/repos/site) invalida os links já partilhados.
+- Um âmbito de país filtra por **nome do país**, não pelo código. Filtrar por `FR`
+  sobre-selecionava (apanhava "África"), por isso o painel converte o código no nome.
+</Warning>
+
 ## A API admin (`functions/_lib/app.ts`)
 
 É uma API **same-origin**: não emite CORS permissivo, por isso o browser bloqueia

@@ -149,6 +149,40 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 **"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
 </Note>
 
+## Âmbito geográfico dos códigos promocionais
+
+Um código pode valer para tudo (`global`), para um continente ou para um país —
+`promo_codes.scope_type` + `scope_value` (ver [base de dados](/database)). O mapa
+país→continente é o `workers/src/lib/continents.json`, **copiado** do site para o
+worker: a validação não depende de rede.
+
+| Onde | O que faz |
+|---|---|
+| `POST /promo/validate` | preview. Aceita `product_id` no body; se o código tem âmbito e o produto não bate certo, devolve **400** com `code: "OUT_OF_SCOPE"` |
+| `POST /order/checkout` | autoritativo. É aqui que o dinheiro conta — o âmbito é re-verificado, o preview não decide nada |
+
+<Warning>
+No checkout, o âmbito é verificado **antes** de `claim_promo_use()`. Trocar a ordem
+faz um código de "Europa" **gastar um uso** num produto da Ásia — e num código de
+100% off isso significa emitir encomendas grátis a mais do que o `max_uses` permite.
+</Warning>
+
+<Note>
+Duas aberturas propositadas, para nunca bloquear uma venda por configuração má:
+
+- Código com `scope_type` diferente de `global` mas `scope_value` vazio → **passa**.
+- `/promo/validate` sem `product_id` → não dá para saber o país do produto, por isso
+  **não valida o âmbito**. O `/order/checkout` valida à mesma, por isso o pior caso é
+  o cliente ver um desconto no preview que desaparece no checkout.
+</Note>
+
+<Warning>
+O `GET /campaigns` passou a pedir `promo_code` no `select`. Sem a coluna na base de
+dados o PostgREST **erra e o endpoint devolve erro** — o banner da home desaparece.
+A migration é `API-BACKEND/migrations/add_promo_scope.sql`, aplicada em produção a
+**2026-09-02**. Aplica-a antes de subir este código para um ambiente novo.
+</Warning>
+
 ## Emails transacionais (`services/email.ts`)
 
 Resend por `fetch` direto, sem SDK. Saem de **`suporte@konecta.pt`** — o mesmo

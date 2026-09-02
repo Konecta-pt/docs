@@ -151,10 +151,15 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 
 ## Âmbito geográfico dos códigos promocionais
 
-Um código pode valer para tudo (`global`), para um continente ou para um país —
-`promo_codes.scope_type` + `scope_value` (ver [base de dados](/database)). O mapa
-país→continente é o `workers/src/lib/continents.json`, **copiado** do site para o
-worker: a validação não depende de rede.
+Um código pode valer para tudo (`global`), para um continente, para um país ou para
+**um produto exato** — `promo_codes.scope_type` + `scope_value` (ver
+[base de dados](/database)). O mapa país→continente é o
+`workers/src/lib/continents.json`, **copiado** do site para o worker: a validação não
+depende de rede.
+
+O âmbito `product` compara pelo **id do produto**, não pelo país: um código feito para
+"Portugal 5GB" não desconta no "Portugal 20GB". É por isso que o `promoScopeMatches()`
+recebe o produto inteiro (`{ id, country_code }`) e não só o código do país.
 
 | Onde | O que faz |
 |---|---|

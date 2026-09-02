@@ -27,8 +27,13 @@ Campaigns, PromoCodes, Competitors, SEO, Infra (OneUptime), Customers, Support
 ## Códigos promocionais com âmbito e cards de campanha
 
 Em **Promo Codes**, o `PromoScopeFields` escolhe o âmbito do código: **Todos**,
-**Continente** ou **País** (grava `scope_type`/`scope_value`; o backend é quem
-aplica — ver [API-BACKEND](/repos/api-backend)). Na tabela, um código com âmbito
+**Continente**, **País** ou **Produto** (grava `scope_type`/`scope_value`; o backend
+é quem aplica — ver [API-BACKEND](/repos/api-backend)).
+
+O âmbito **Produto** escolhe-se em dois passos, país e depois plano: há cerca de 6000
+produtos ativos e um único `select` com todos é inutilizável. Guarda o **id** do
+produto, por isso o código desconta só naquele plano — outro plano do mesmo país não
+conta. Na tabela, um código com âmbito
 mostra `âmbito: <valor>` por baixo do código.
 
 Em **Campaigns**, o formulário do card tem **Código de desconto (opcional)**: só
@@ -50,6 +55,9 @@ com `?continent=` ou `?search=` mais `?promo=`. Duas coisas partem-no em silênc
   a rota de destinos no repo [konecta.pt](/repos/site) invalida os links já partilhados.
 - Um âmbito de país filtra por **nome do país**, não pelo código. Filtrar por `FR`
   sobre-selecionava (apanhava "África"), por isso o painel converte o código no nome.
+- Um âmbito de **produto** não tem página própria no site: o link leva ao país desse
+  produto. Se o produto não estiver na lista carregada na página (limite de 200), o
+  link sai **sem filtro** — o código continua válido, só não pré-filtra os destinos.
 </Warning>
 
 ## A API admin (`functions/_lib/app.ts`)

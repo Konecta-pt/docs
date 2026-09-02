@@ -273,6 +273,28 @@ casos em que o slug começava por um código válido (`espanha` → `es`) mostra
 bandeira **errada**. O código a sério vem de `resolved.country_code`.
 </Warning>
 
+## Recarga na página do eSIM
+
+A página `/esims/:id` lista os planos do **mesmo destino** e compra-os ali —
+`getEsimTopupOptions()` chama o `/esim/:id/topup-options` do
+[API-BACKEND](/repos/api-backend), e o botão usa o mesmo `createCheckout()` da página
+do plano (encomenda aqui, pagamento em `pay.konecta.pt`).
+
+<Warning>
+**Não é recarga do lado do operador.** O provider não recarrega um ICCID: o que se
+vende é outro plano, que o cliente instala como o primeiro. O que muda face a mandá-lo
+ao catálogo é o caminho — dois cliques a partir do eSIM que está a acabar.
+</Warning>
+
+<Note>
+É para aqui que aponta o botão do **aviso de consumo dos 80%**. A página exige login,
+ao contrário do catálogo: é o preço de o cliente cair no sítio certo, com o destino
+já resolvido.
+</Note>
+
+Os preços vêm do catálogo **líquidos** — o `grossEur()` é que mostra o valor com IVA,
+igual ao resto do site.
+
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
 O `?promo=` é lido em `/destinations` e na página do plano e guardado em

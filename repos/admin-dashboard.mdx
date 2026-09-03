@@ -115,10 +115,18 @@ que nenhum outro relatório mostra: o Google ter escolhido uma canónica diferen
 declarada pela página.
 </Warning>
 
-## Overview: o painel de lucro
+## Overview: os números que interessam
 
-O bloco **Lucro** é a cascata do dinheiro, do que o cliente paga até ao que sobra, em
-**duas colunas**: o período escolhido (7d/30d/90d) e o **acumulado desde sempre**.
+A página está por ordem de importância: **lucro** primeiro, contexto a seguir.
+
+### O bloco de lucro
+
+A cascata do dinheiro, do que o cliente paga até ao que sobra, com um **número
+grande** e uma barra por linha em proporção ao bruto. O lucro é
+
+```
+lucro = preço do eSIM − IVA − custo no provider − taxas Stripe
+```
 
 | Linha | O que é |
 | --- | --- |
@@ -129,9 +137,8 @@ O bloco **Lucro** é a cascata do dinheiro, do que o cliente paga até ao que so
 | − Custo dos planos | `Σ esim_products.cost_cents` dos produtos vendidos, sem IVA |
 | **= Lucro** | e a margem sobre a receita sem IVA |
 
-A conta corre em `getProfitStats(days)` (`src/lib/api.ts`), sobre os pedidos `paid` e
-`completed`. Passar `null` em vez dos dias tira o filtro de data em todo o lado — é
-assim que se calcula a coluna "desde sempre".
+Um botão **Últimos Xd / Desde sempre** troca o período mostrado sem refazer pedido
+nenhum — as duas contas vêm carregadas de início.
 
 <Note>
 As duas pontas seguem a convenção do [API-BACKEND](/repos/api-backend): `orders` está
@@ -140,10 +147,28 @@ As duas pontas seguem a convenção do [API-BACKEND](/repos/api-backend): `order
 duplica o imposto e o lucro passa a ficção.
 </Note>
 
-As taxas são as **reais** da Stripe (`GET /api/v1/admin/balance-transactions`, com
-`created_gte` quando há período), paginadas até 1000 transações. Se a Stripe não
-responder, o painel diz que o lucro está **por cima** em vez de fingir que as taxas são
-zero; se passar das 1000, diz que o valor é um mínimo.
+### Os seis cartões
+
+Receita, **Lucro**, **Ticket médio**, **Conversão**, eSIMs ativos e clientes. Os dois
+do meio são novos e são os que dizem se o negócio funciona: quanto rende uma venda e
+que fração das encomendas chega a pago.
+
+### Lucro acumulado, funil e países
+
+- **Lucro acumulado** — barras com a receita do dia e área com o lucro somado ao longo
+  do período. Abaixo de **8 dias com pedidos** não desenha nada: uma curva com dois
+  pontos finge uma tendência que não existe, por isso mostra-se uma frase em vez do
+  gráfico.
+- **Funil de encomendas** — criadas → pagas → pendentes → perdidas → reembolsadas, com
+  a conversão em destaque. É aqui que se vê o que a receita esconde: encomendas que
+  começam e nunca pagam.
+- **Países** — o mapa ao lado do **lucro por país**, ordenado pelo que cada país deu.
+
+<Warning>
+O lucro por dia e por país é **antes das taxas Stripe**. A taxa é cobrada à conta, não
+ao pedido, e reparti-la por encomenda seria inventar um número. Só o bloco de lucro no
+topo desconta as taxas — é por isso que a soma dos países não bate certo com ele.
+</Warning>
 
 <Warning>
 Um pedido entregue a **0 €** — os antigos checkouts de demonstração — não dá receita mas
@@ -155,6 +180,14 @@ Não há FK entre `orders.esim_product_id` e `esim_products.id`: o custo vem de 
 query e de um `Map`, não de um embed do PostgREST. Um pedido cujo produto tenha
 desaparecido do catálogo entra com **custo zero** e infla o lucro.
 </Warning>
+
+Tudo isto sai de uma só função, `getProfitStats(days)` em `src/lib/api.ts`, que traz as
+encomendas **de todos os estados** (a conversão precisa das que falharam) e devolve
+também a série diária, o funil e o corte por país. Passar `null` em vez dos dias tira o
+filtro de data — é assim que se calcula o "desde sempre". As taxas são as reais da
+Stripe (`GET /api/v1/admin/balance-transactions`, com `created_gte` quando há período),
+paginadas até 1000 transações; se a Stripe não responder, o painel escreve `—` na linha
+das taxas e avisa que o lucro está **por cima**.
 
 ## Support: ticket e ficha do cliente
 

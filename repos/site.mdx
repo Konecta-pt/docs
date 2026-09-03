@@ -334,6 +334,42 @@ anunciava que todos os destinos tinham mudado. Uma data que muda sempre não dis
 nada — e o Google acaba por ignorar as datas do ficheiro inteiro, incluindo as do blog.
 Sem data é melhor do que com data falsa.
 
+## Analytics: duas medições que respondem a perguntas diferentes
+
+O site mede duas vezes, de propósito, e cada uma responde a uma pergunta que a outra
+não consegue.
+
+| | O que responde | Onde vive |
+| --- | --- | --- |
+| Beacon próprio | *Quem* é este visitante — cruza a sessão com o chat e as compras pelo mesmo `web_...` | `visitor_sessions` na [base de dados](/database) |
+| Google Analytics 4 | *De onde* veio — canal, campanha, landing page, e liga-se à Search Console | conta GA `G-XPC3SF1LN0` |
+
+Os dois são disparados pela mesma função, `trackPage()` em `src/lib/visitor.ts`, chamada
+pelo `VisitorTracker` a cada mudança de rota.
+
+<Note>
+O `send_page_view` do GA4 está a **false** e as vistas são enviadas por nós. Numa SPA o
+GA só veria a primeira página: as navegações seguintes não recarregam o documento e
+desapareciam todas dos relatórios.
+</Note>
+
+O ID de medição está **no código**, não numa variável de ambiente — é público de
+qualquer maneira, vai no HTML de qualquer site com GA, e uma variável esquecida numa
+configuração é uma medição que deixa de existir sem ninguém dar por isso. `VITE_GA_ID`
+sobrepõe-se se for preciso.
+
+<Warning>
+**O GA só carrega em `konecta.pt`.** Um `npm run dev` ou um preview do Pages entrava nos
+relatórios como tráfego real, e com o volume actual meia dúzia de recargas da tua
+própria página chegava para tornar as métricas inúteis.
+
+E arranca **sem cookies**: o site não tem banner de consentimento, por isso o Consent
+Mode entra com `analytics_storage: 'denied'`. O GA4 conta visitas e atribui canais em
+modo cookieless, mas não guarda identificadores no browser — logo os números de
+*utilizadores* são estimativas e não há retorno de visitante fiável. Quando existir
+banner, chamar `permitirCookiesAnalytics()` depois do "aceito" liga o resto.
+</Warning>
+
 ## O chat pede nome e email antes de começar
 
 Um visitante anónimo não abre conversa sem se identificar: o `ChatWidget` mostra um

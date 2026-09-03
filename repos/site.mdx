@@ -471,10 +471,9 @@ O `request()` de `src/lib/api.ts` passa agora o `code` e o corpo do erro no obje
 de cair no genérico.
 </Warning>
 
-O `MIN_ORDER_NOT_MET` traz também `min_order_cents` na resposta. O mínimo é comparado
-contra o **líquido**, mas o cliente vê preços **com IVA** — por isso a mensagem mostra
-o valor já com IVA, que é o que ele reconhece na montra. Um mínimo de €10 líquidos
-aparece-lhe como **€12,30**.
+O `MIN_ORDER_NOT_MET` traz também `min_order_cents` na resposta, e esse valor é o
+**preço com IVA** — o número que o lojista escreveu no painel e o mesmo que está na
+etiqueta. A mensagem mostra-o tal e qual, sem conversões.
 
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 

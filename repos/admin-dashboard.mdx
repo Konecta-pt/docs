@@ -206,6 +206,24 @@ declarada pela página.
 
 A página está por ordem de importância: **lucro** primeiro, contexto a seguir.
 
+### As contas de teste não contam
+
+As métricas excluem as contas internas, listadas em `EMAILS_INTERNOS` (`src/lib/api.ts`).
+As encomendas ficam todas na base de dados; só saem das contas.
+
+<Warning>
+**Sem isto o painel media-nos a nós.** A 03/09/2026, das 20 encomendas de sempre,
+**15 eram testes**. A conversão aparecia como **25%** quando a real é **80%** — quatro
+em cada cinco encomendas de clientes verdadeiros são pagas.
+
+A diferença entre esses dois números é a diferença entre "o checkout está partido,
+vai arranjá-lo" e "o checkout funciona, vai buscar clientes". Um número errado sobre o
+qual se decide é pior do que número nenhum.
+</Warning>
+
+A lista é por email e não por id, para dizer alguma coisa a quem a ler daqui a um ano.
+Aplica-se às encomendas, aos eSIMs e à contagem de clientes.
+
 ### O bloco de lucro
 
 A cascata do dinheiro, do que o cliente paga até ao que sobra, com um **número

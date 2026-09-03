@@ -264,6 +264,72 @@ não estiver na lista carregada, o link vai sem filtro nenhum. O código continu
 aplicar-se no checkout; só não pré-filtra os destinos.
 </Note>
 
+## A base de dados fala pelo servidor, não pelo browser
+
+O painel **já não leva a chave `service_role` no bundle**. Todas as queries do
+Supabase saem por um proxy same-origin nas Pages Functions e é o worker que as assina.
+
+```
+browser → /api/v1/admin/db/rest/v1/... → (apikey do servidor) → Supabase PostgREST
+```
+
+O cliente do `src/lib/api.ts` é criado a apontar para
+`${window.location.origin}/api/v1/admin/db` com uma chave de fachada que o proxy
+descarta. Todo o resto do código — os `supabase.from(...)` espalhados pelas páginas —
+ficou igual.
+
+<Warning>
+**Isto não é opcional.** Antes, qualquer pessoa que abrisse o JavaScript do painel
+tinha a chave que ignora o RLS e lê a base de dados inteira: clientes, encomendas,
+segredos de 2FA. O Cloudflare Access protege a *página*, não os ficheiros que ela
+carrega.
+</Warning>
+
+O proxy só aceita caminhos que comecem por `/rest/v1/` — sem essa guarda, dava acesso
+ao resto da API do Supabase (auth, storage, funções) com poderes de service role. E só
+lá chega quem passou o `csrfGuard` e o Cloudflare Access, ou seja um admin, que já lia
+tudo à mesma. O que mudou é que a chave deixou de ser distribuída.
+
+O mesmo vale para o **push**: o `POST /api/v1/admin/push-send` reencaminha para o
+API-BACKEND com a chave posta pelo servidor. As páginas de Notificações e de Suporte
+deixaram de a conhecer.
+
+### O que continua a ir para o browser
+
+O **realtime** é WebSocket e não passa por um proxy HTTP, por isso usa a chave
+**anónima** — que é pública por desenho. Os canais de chat e de pedidos já caem para
+polling quando a subscrição falha, por isso o painel funciona mesmo que o RLS venha a
+fechar essas tabelas.
+
+### O `dist/` deixou de ser versionado
+
+O Cloudflare Pages constrói a partir do código (*build command* `npm run build`,
+*output* `dist`), por isso um `dist/` em git nunca era usado para nada — era só uma
+cópia desactualizada do bundle a viajar em cada clone, **com a chave lá dentro**.
+Saiu do controlo de versões e está no `.gitignore`. O `public/_redirects` e os favicons
+continuam no código; o build copia-os.
+
+### Nenhuma variável do browser é obrigatória
+
+O ecrã de "configuração necessária" desapareceu. Os dados chegam pelo proxy, que só
+precisa de variáveis **no servidor** — se faltarem `VITE_SUPABASE_URL` e
+`VITE_SUPABASE_ANON_KEY`, perde-se o tempo real e fica o polling, com um aviso na
+consola. Tapar o painel inteiro por causa de uma funcionalidade opcional era um
+tiro no pé.
+
+### Desenvolvimento local
+
+`npm run dev` (Vite) **não corre as Pages Functions**, por isso o proxy devolve 404 e o
+painel fica sem dados. Para trabalhar com dados reais:
+
+```bash
+npm run build
+npx wrangler pages dev dist --port 8788
+```
+
+com um `.dev.vars` (nunca versionado) contendo `ENV=development`, `DISABLE_AUTH=true`,
+`ALLOWED_ORIGIN=http://localhost:8788`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`.
+
 ## A API admin (`functions/_lib/app.ts`)
 
 É uma API **same-origin**: não emite CORS permissivo, por isso o browser bloqueia
@@ -339,6 +405,8 @@ sem impedir um segundo reembolso intencional. A proteção contra duplo clique e
 | --- | --- | --- |
 | `POST` | `/api/v1/admin/esim-products/sync/:provider?` | dispara o sync do catálogo no worker de eSIMs (só `esimcard`). Autentica-se com `ESIMS_SYNC_SECRET`, **server-only** — nunca com prefixo `VITE_`. |
 | `POST` | `/api/v1/admin/email/send` | envio via **Resend**, `multipart/form-data`, anexo até 10 MB. De `Konecta <noreply@konecta.pt>`, `reply_to` d. `business@konecta.pt`, embrulhado no template da marca. |
+| `ALL` | `/api/v1/admin/db/rest/v1/*` | proxy PostgREST assinado pelo servidor (ver acima). Só `/rest/v1/`; qualquer outro caminho dá 400 |
+| `POST` | `/api/v1/admin/push-send` | reencaminha o push para o API-BACKEND com a chave posta pelo servidor |
 | `GET` | `/api/v1/admin/status` | health-check server-side aos três workers + presença dos secrets deste projeto (ver acima) |
 | `GET` | `/api/v1/admin/seo/audit` | auditoria do konecta.pt (sitemap, robots, amostra de páginas) |
 | `GET` | `/api/v1/admin/seo/inspect` | *URL Inspection* da Search Console para **um** URL (quota 2000/dia) |
@@ -349,7 +417,9 @@ sem impedir um segundo reembolso intencional. A proteção contra duplo clique e
 **Pages Functions (server-only, nunca chegam ao browser):**
 `CF_ACCESS_AUD` (obrigatória), `CF_ACCESS_TEAM_DOMAIN` (d. `konectapt.cloudflareaccess.com`),
 `ADMIN_EMAILS`, `ALLOWED_EMAIL_DOMAIN`, `ALLOWED_ORIGIN`, `STRIPE_SECRET_KEY`,
-`ESIMS_SYNC_SECRET`, `ESIMS_SYNC_URL`, `RESEND_API_KEY`, `DISABLE_AUTH`.
+`ESIMS_SYNC_SECRET`, `ESIMS_SYNC_URL`, `RESEND_API_KEY`, `DISABLE_AUTH`,
+**`SUPABASE_URL`**, **`SUPABASE_SERVICE_ROLE_KEY`** (o proxy e o push), `BACKEND_API_URL`
+(d. `https://api.konecta.pt`).
 
 **Build do SPA (`VITE_*`, ficam no bundle do browser):**
 `VITE_API_URL`, `VITE_ESIMS_URL`, `VITE_INTERNAL_API_SECRET`, `VITE_STRIPE_ADMIN_URL`,

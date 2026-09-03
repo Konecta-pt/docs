@@ -154,17 +154,42 @@ Nunca correr `DELETE`, `TRUNCATE` ou `DROP` nesta base de dados sem validação
 explícita. Serve o site e a App em produção ao mesmo tempo.
 </Warning>
 
-## Tabelas em falta
+## Tráfego do site
 
-Três tabelas são consultadas por código em produção mas **não existem** na base de
-dados — qualquer chamada que lá chegue devolve erro do PostgREST:
+| Tabela | Colunas | Notas |
+| --- | --- | --- |
+| `visitor_sessions` | `visitor_id` PK, `email`, `ip`, `country`, `city`, `region`, `user_agent`, `current_page`, `referrer`, `page_views`, `first_seen_at`, `last_seen_at` | uma linha por visitante, actualizada a cada página |
+| `visitor_page_views` | `visitor_id`, `page`, `referrer`, `created_at` | a jornada, uma linha por página vista |
+
+Escritas pelo `POST /api/v1/track` do [API-ESIMS](/repos/api-esims), que o site chama a
+cada mudança de rota (`konecta.pt/src/lib/visitor.ts`). O geo vem do Cloudflare
+(`CF-IPCountry`, `cf.city`, `cf.region`), por isso não há pedido a nenhum serviço externo.
+
+O `visitor_id` é o **mesmo** `konecta_chat_uid` do widget de chat e o `user_id` das
+encomendas de visitantes anónimos (`web_...`), por isso cruza-se directamente com
+`chat_conversations` e `orders`. É o que alimenta as duas primeiras linhas do funil no
+Overview do admin.
+
+<Warning>
+**Só há dados a partir de 03/09/2026.** As tabelas foram criadas nessa data; antes
+disso o site enviava os eventos na mesma e o worker escrevia para tabelas inexistentes
+— o PostgREST devolvia erro, o `try/catch` engolia-o e cada visita desaparecia. Todo o
+tráfego anterior está perdido e não se recupera.
+
+Por causa disso, o funil tem encomendas de julho e agosto sem as visitas que lhes deram
+origem. O painel não mostra a taxa de conversão por visita enquanto as visitas forem
+menos do que as encomendas do período — dividir uma pela outra dava percentagens
+absurdas.
+</Warning>
+
+RLS activo nas duas, **sem políticas**: só a service role escreve e lê. O worker usa-a,
+e o admin chega lá pelo proxy.
+
+## Tabelas em falta
 
 | Tabela | Quem a consulta |
 | --- | --- |
 | `competitor_prices` | API-BACKEND (página Concorrência do admin) |
-| `visitor_sessions` | API-ESIMS, `POST /api/v1/track` |
-| `visitor_page_views` | API-ESIMS, `POST /api/v1/track` |
 
-Existe `API-BACKEND/migrations/create_competitor_prices.sql` e
-`create_visitor_sessions.sql` por aplicar. Ou se aplicam, ou se remove o código que
-as usa.
+Existe `API-BACKEND/migrations/create_competitor_prices.sql` por aplicar. Ou se aplica,
+ou se remove o código que a usa.

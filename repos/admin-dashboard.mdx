@@ -117,20 +117,21 @@ declarada pela página.
 
 ## Overview: o painel de lucro
 
-O bloco **Lucro** mostra o P&L das vendas do período escolhido (7d/30d/90d), em cinco
-números: **bruto cobrado**, **IVA**, **custo dos planos**, **taxas Stripe** e **lucro**,
-mais a margem sobre a receita líquida.
+O bloco **Lucro** é a cascata do dinheiro, do que o cliente paga até ao que sobra, em
+**duas colunas**: o período escolhido (7d/30d/90d) e o **acumulado desde sempre**.
 
-A conta, feita em `getProfitStats()` (`src/lib/api.ts`), sobre os pedidos `paid` e
-`completed` do período:
+| Linha | O que é |
+| --- | --- |
+| Bruto cobrado | `Σ orders.price_cents − Σ orders.refunded_cents`, já com IVA |
+| − Taxas Stripe | a soma real do `fee` das balance transactions |
+| **= Recebido na conta** | o dinheiro que a Stripe deposita |
+| − IVA (23%) | `bruto × 23/123` — não é receita, é imposto a entregar |
+| − Custo dos planos | `Σ esim_products.cost_cents` dos produtos vendidos, sem IVA |
+| **= Lucro** | e a margem sobre a receita sem IVA |
 
-```
-bruto    = Σ orders.price_cents − Σ orders.refunded_cents   (já com IVA)
-IVA      = bruto × 23/123
-líquido  = bruto − IVA
-custo    = Σ esim_products.cost_cents dos produtos vendidos  (sem IVA)
-lucro    = líquido − custo − taxas Stripe
-```
+A conta corre em `getProfitStats(days)` (`src/lib/api.ts`), sobre os pedidos `paid` e
+`completed`. Passar `null` em vez dos dias tira o filtro de data em todo o lado — é
+assim que se calcula a coluna "desde sempre".
 
 <Note>
 As duas pontas seguem a convenção do [API-BACKEND](/repos/api-backend): `orders` está
@@ -139,11 +140,10 @@ As duas pontas seguem a convenção do [API-BACKEND](/repos/api-backend): `order
 duplica o imposto e o lucro passa a ficção.
 </Note>
 
-As taxas são as **reais** da Stripe — a soma do campo `fee` das balance transactions do
-período (`GET /api/v1/admin/balance-transactions?created_gte=`), não uma percentagem
-inventada. Se a Stripe não responder, o painel diz que o lucro está **por cima** em vez
-de fingir que as taxas são zero. Acima de 100 transações no período o valor é um mínimo,
-e o painel avisa.
+As taxas são as **reais** da Stripe (`GET /api/v1/admin/balance-transactions`, com
+`created_gte` quando há período), paginadas até 1000 transações. Se a Stripe não
+responder, o painel diz que o lucro está **por cima** em vez de fingir que as taxas são
+zero; se passar das 1000, diz que o valor é um mínimo.
 
 <Warning>
 Um pedido entregue a **0 €** — os antigos checkouts de demonstração — não dá receita mas

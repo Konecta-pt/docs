@@ -149,6 +149,30 @@ PaymentIntent trata os dois casos como "Ilimitado" — dividir por 1024 às cega
 **"Switzerland - -1.0GB - 1 dias"** no extrato bancário do cliente.
 </Note>
 
+## Uma falha de pagamento tem de deixar rasto
+
+Nos webhooks `payment.failed` e `payment.cancelled`, a encomenda guarda também o
+**`payment_intent_id`**. Sem ele, uma encomenda falhada não tem ligação nenhuma ao que
+aconteceu do lado da Stripe.
+
+<Warning>
+**Isto esteve em falta e custou a autópsia de 15 encomendas.** A 03/09/2026, das 20
+encomendas existentes, 15 estavam mortas e **nenhuma** tinha `payment_intent_id` — só o
+`payment.succeeded` o gravava. Não havia forma de saber se foram cartões recusados,
+3DS abandonados, MB WAY nunca confirmados ou um bug do checkout. A informação chegava
+da Stripe a cada webhook e era deitada fora.
+
+Com o id gravado, cada falha fica a um clique do registo real: no painel,
+`/api/v1/admin/payments?query=<payment_intent>` traz o `last_payment_error`.
+</Warning>
+
+<Note>
+O `payment.failed` mantém a guarda `.not('status','in','(paid,processing,completed,
+refunded,partially_refunded)')`. Uma tentativa abandonada de MB WAY expira do lado da
+Stripe e chega com o **mesmo** `order_id` de uma segunda tentativa que já foi paga —
+sem a guarda, o `failed` esmagava o `completed` e a venda desaparecia da receita.
+</Note>
+
 ## Cron do worker
 
 `*/15 * * * *` → `runUsageAlerts()` + `runInstallReminders()`. É o único cron deste

@@ -85,6 +85,40 @@ com `?continent=` ou `?search=` mais `?promo=`. Duas coisas partem-no em silênc
   link sai **sem filtro** — o código continua válido, só não pré-filtra os destinos.
 </Warning>
 
+## QR de parceiro
+
+Em **Campanhas**, o painel de gerar link mostra também o QR desse link, com o logótipo
+da Konecta ao centro e os três olhos na cor da marca. Descarrega-se em **SVG**, para
+imprimir a qualquer tamanho.
+
+O desenho é feito à mão em `src/lib/qr.ts`, a partir da matriz que o
+`qrcode-generator` devolve — a parte difícil é a matriz e essa já está resolvida; o
+resto são rectângulos.
+
+| Escolha | Porquê |
+| --- | --- |
+| Correcção de erro **H** (30%) | o logótipo tapa módulos; com menos, o centro perdido não se recupera |
+| Módulos em **quadrado de canto redondo**, não círculo | ver o aviso abaixo |
+| Olhos com `rx` pequeno | o localizador procura três quadrados na proporção 1:1:3:1:1 e arredondar de mais desfá-la |
+| Dados em quase-preto, marca só nos olhos | rosa sobre branco falha com câmaras más e luz fraca |
+| Margem de 4 módulos | zona de silêncio; abaixo disto muitos scanners desistem |
+| Logótipo em base64 dentro do SVG | um `import` daria um URL, e o ficheiro descarregado — que vai para um cartaz ou para o Canva de um parceiro — ficava com a imagem partida |
+
+<Warning>
+**Os módulos redondos foram testados e chumbaram.** Com círculos de raio 0.45, o QR
+deixava de descodificar a 350, 600, 1000 e 1200 px: os círculos deixam buracos nas
+diagonais entre módulos e o binarizador perde a grelha em certas escalas. Com
+quadrados de canto redondo, dezasseis dos dezassete tamanhos testados (90 a 1600 px)
+lêem — só falha a 130 px, que são 2,5 píxeis por módulo, abaixo do mínimo físico de
+qualquer QR.
+
+Se mexeres na forma dos módulos, **volta a medir**. Um QR que parece bem no ecrã e não
+lê no cartaz só se descobre quando já está impresso.
+</Warning>
+
+O código promocional **é** o parceiro: não há tabela de parceiros nem é precisa. Um
+código por parceiro, e as encomendas ficam ligadas a ele por `orders.promo_code_id`.
+
 ## Auditoria de SEO e GEO
 
 A página **SEO & GEO** tem dois separadores:

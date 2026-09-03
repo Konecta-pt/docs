@@ -409,6 +409,23 @@ ser o que sai quando o email não é conhecido.
 
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
+<Note>
+**O código sobrevive 30 dias, e é capturado em qualquer página.** Um QR de parceiro é
+lido ao balcão de um hotel e a compra pode acontecer nessa noite, noutro separador —
+por isso `src/lib/promo.ts` guarda o código no **localStorage com validade**, e não no
+sessionStorage, que morre com o separador.
+
+A validade evita o outro extremo: um código colado ao browser para sempre, a descontar
+compras que já nada devem àquele parceiro. Depois de uma compra concluída, o
+`CheckoutSuccess` chama `clearPendingPromo()`.
+
+A captura acontece no `VisitorTracker` do `App.tsx`, a cada mudança de rota, e não só
+em `/destinations` e na página do plano — assim um QR pode apontar para a home ou para
+qualquer destino.
+</Note>
+
+## Códigos promocionais que chegam pelo link (`?promo=`)
+
 O `?promo=` é lido em `/destinations` e na página do plano e guardado em
 **`sessionStorage`** (`src/lib/promo.ts`, chave `konecta_pending_promo`). Tem de ser
 guardado porque o cliente aterra na lista e só chega ao input do código mais tarde —

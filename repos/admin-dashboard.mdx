@@ -85,6 +85,28 @@ com `?continent=` ou `?search=` mais `?promo=`. Duas coisas partem-no em silênc
   link sai **sem filtro** — o código continua válido, só não pré-filtra os destinos.
 </Warning>
 
+## Promo Codes: vendas, não usos
+
+A coluna da tabela mostra **vendas pagas** por código, com a receita ao lado — não o
+`promo_codes.uses_count`.
+
+<Warning>
+**O `uses_count` não conta vendas.** É incrementado pelo `claim_promo_use()` no momento
+em que a **encomenda é criada**, não quando é paga. É assim de propósito: é essa
+escrita atómica que impede um código com `max_uses` de ser resgatado mais vezes do que
+devia por pedidos simultâneos — crítico num código de 100%.
+
+O efeito colateral é que conta checkouts abandonados. O `BEATRIZKON100` marcava **6
+usos para 2 vendas**: as outras quatro nunca foram pagas. Com uma conversão de 25%, ler
+o `uses_count` como vendas inflaciona o número em quatro vezes.
+</Warning>
+
+As vendas saem de `orders.promo_code_id` com estado `paid` ou `completed`
+(`getPromoSales()` em `src/lib/api.ts`). Quando há encomendas criadas que nunca foram
+pagas, a linha diz quantas são, a amarelo — é informação útil sobre o código, não ruído.
+O `uses_count` continua visível, mas só nos códigos com `max_uses`, que é onde importa
+saber quanto resta.
+
 ## QR de parceiro
 
 Em **Campanhas**, o painel de gerar link mostra também o QR desse link, com o logótipo

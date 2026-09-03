@@ -80,6 +80,52 @@ procura uma regra inválida acima delas antes de suspeitares de limites.
 regras — ver a secção seguinte.
 </Warning>
 
+## A cache envenenada que punha o site em branco
+
+**Aconteceu em produção a 03/09/2026:** o `/pt/destinations` ficava em branco e a
+recarregar em ciclo infinito, em browsers diferentes, com todos os ficheiros a
+responder 200 no servidor.
+
+A cadeia:
+
+1. Durante um deploy, o browser pede `/assets/Destinations-XXX.js` — um chunk que
+   naquele instante já não existe.
+2. A Pages, quando não encontra um ficheiro, serve o `index.html` com **200 OK**.
+3. O `public/_headers` marca **tudo** em `/assets/*` como
+   `Cache-Control: public, max-age=31536000, immutable`.
+4. O browser guarda **HTML no URL de um `.js`**, por um ano, e `immutable` significa
+   que nunca mais revalida.
+5. O import dinâmico falha com erro de MIME → o handler recarrega → a cache devolve
+   o mesmo HTML → **ciclo infinito**.
+
+<Warning>
+Isto não se vê com `curl`: o servidor responde `application/javascript` na perfeição.
+Só se apanha dentro do browser afectado. O teste que o provou:
+
+```js
+await (await fetch(url)).text()                    // "<!doctype html>…"
+await (await fetch(url, { cache: 'reload' })).text() // "import{u as v,…"
+```
+</Warning>
+
+Duas correcções, e são precisas as duas:
+
+- **`functions/assets/[[path]].ts`** — um ficheiro em falta debaixo de `/assets/`
+  responde **404** com `no-store`, em vez do `index.html`. Corta o veneno na origem.
+  A função deixa passar tudo o que não seja HTML, por isso os ficheiros que existem
+  são servidos como sempre.
+- **`src/main.tsx`** — no `vite:preloadError`, vai-se buscar o ficheiro com
+  `cache: 'reload'` **antes** de recarregar. Isso substitui a entrada envenenada.
+  Sem isto, quem já tem a cache estragada fica sem site durante um ano, porque
+  nenhuma correcção no servidor lhe chega.
+
+<Warning>
+A guarda anterior contra ciclos estava partida: punha uma flag no `sessionStorage` e
+limpava-a no evento `load` — ou seja, era limpa pela própria recarga que tinha
+acabado de desencadear. Nunca guardou nada. Agora é um carimbo de tempo, no máximo
+uma recarga por minuto.
+</Warning>
+
 ## O 404 vive em `functions/`, não num `404.html`
 
 `/cgi-bin/` nunca existiu aqui: é o caminho que os scanners de vulnerabilidades

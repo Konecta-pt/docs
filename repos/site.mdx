@@ -407,6 +407,29 @@ Sem isto, tanto o painel como o [alerta de Telegram](/repos/api-backend) mostrav
 "Visitante" e um email fabricado (`visitante_<6 dígitos>@konecta.pt`) — que continua a
 ser o que sai quando o email não é conhecido.
 
+## Porque falhou o código promocional
+
+O `/promo/validate` recusa por seis razões diferentes e devolve um `code` para cada
+uma: `MIN_ORDER_NOT_MET`, `OUT_OF_SCOPE`, `EXPIRED_CODE`, `CODE_EXHAUSTED`,
+`SELF_REFERRAL`, `INVALID_CODE`. O site traduz esse código; a frase do backend é
+ignorada de propósito, porque sai sempre em português e o site é bilingue.
+
+<Warning>
+**Isto já esteve partido e custava vendas.** O `catch` mostrava
+`plan.promoInvalid` — *"Código inválido ou expirado"* — para qualquer falha. Um cliente
+que só precisava de escolher um plano um pouco maior era informado de que o código não
+prestava, e ia-se embora.
+
+O `request()` de `src/lib/api.ts` passa agora o `code` e o corpo do erro no objecto
+`Error` (ver `ApiError`). Qualquer chamada ao backend pode traduzir a razão real em vez
+de cair no genérico.
+</Warning>
+
+O `MIN_ORDER_NOT_MET` traz também `min_order_cents` na resposta. O mínimo é comparado
+contra o **líquido**, mas o cliente vê preços **com IVA** — por isso a mensagem mostra
+o valor já com IVA, que é o que ele reconhece na montra. Um mínimo de €10 líquidos
+aparece-lhe como **€12,30**.
+
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
 <Note>

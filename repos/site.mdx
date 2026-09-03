@@ -358,6 +358,19 @@ qualquer maneira, vai no HTML de qualquer site com GA, e uma variável esquecida
 configuração é uma medição que deixa de existir sem ninguém dar por isso. `VITE_GA_ID`
 sobrepõe-se se for preciso.
 
+### O evento de compra
+
+`registarCompra()` dispara o `purchase` do GA4 na página de sucesso do checkout, e é
+este evento — não as visitas — que liga a receita ao canal que a trouxe.
+
+Só corre para encomendas em `paid` ou `completed`, e é **idempotente por
+`transaction_id`**: a página de sucesso é recarregável e partilhável, e sem essa guarda
+uma recarga contava a mesma venda outra vez. A marca fica no `localStorage`; numa janela
+privada não há como despistar duplicados, e aí prefere-se contar duas vezes a não contar.
+
+O `value` vai **com IVA**, porque é o que a Stripe cobrou, e o `tax` leva a parte de
+imposto (23/123) à parte — é assim que o GA quer receber.
+
 <Warning>
 **O GA só carrega em `konecta.pt`.** Um `npm run dev` ou um preview do Pages entrava nos
 relatórios como tráfego real, e com o volume actual meia dúzia de recargas da tua

@@ -410,14 +410,14 @@ ser o que sai quando o email não é conhecido.
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
 <Note>
-**O código sobrevive 30 dias, e é capturado em qualquer página.** Um QR de parceiro é
-lido ao balcão de um hotel e a compra pode acontecer nessa noite, noutro separador —
-por isso `src/lib/promo.ts` guarda o código no **localStorage com validade**, e não no
-sessionStorage, que morre com o separador.
+**O código dura 2 horas, e é capturado em qualquer página.** Quem lê o QR pode fechar o
+separador, ir ver preços e voltar — por isso `src/lib/promo.ts` guarda o código no
+**localStorage com validade**, e não no sessionStorage, que morre com o separador.
 
-A validade evita o outro extremo: um código colado ao browser para sempre, a descontar
-compras que já nada devem àquele parceiro. Depois de uma compra concluída, o
-`CheckoutSuccess` chama `clearPendingPromo()`.
+Duas horas é uma janela de decisão, não uma campanha: quem leu o QR ao balcão compra
+nessa visita ou não compra, e passado esse tempo uma venda já não se deve àquele
+parceiro. Depois de uma compra concluída, o `CheckoutSuccess` chama
+`clearPendingPromo()`.
 
 A captura acontece no `VisitorTracker` do `App.tsx`, a cada mudança de rota, e não só
 em `/destinations` e na página do plano — assim um QR pode apontar para a home ou para

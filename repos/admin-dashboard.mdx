@@ -103,6 +103,7 @@ resto são rectângulos.
 | Dados em quase-preto, marca só nos olhos | rosa sobre branco falha com câmaras más e luz fraca |
 | Margem de 4 módulos | zona de silêncio; abaixo disto muitos scanners desistem |
 | Logótipo em base64 dentro do SVG | um `import` daria um URL, e o ficheiro descarregado — que vai para um cartaz ou para o Canva de um parceiro — ficava com a imagem partida |
+| O **K** recortado e centrado numa tela quadrada | o K é mais alto do que largo; sem a tela, o `<image>` do SVG esticava-o para caber num quadrado |
 
 <Warning>
 **Os módulos redondos foram testados e chumbaram.** Com círculos de raio 0.45, o QR
@@ -115,6 +116,11 @@ qualquer QR.
 Se mexeres na forma dos módulos, **volta a medir**. Um QR que parece bem no ecrã e não
 lê no cartaz só se descobre quando já está impresso.
 </Warning>
+
+O logótipo vive em `src/lib/logo.ts`, gerado a partir de
+`KONECTA LOGO SECUNDÁRIO PNG/LOGO ROSA.png` (1000×1000, o símbolo isolado) e reduzido a
+512 px — num QR de 10 cm o logótipo mede ~2 cm, o que dá cerca de 650 dpi. Se a marca
+mudar, é este ficheiro que se regera.
 
 O código promocional **é** o parceiro: não há tabela de parceiros nem é precisa. Um
 código por parceiro, e as encomendas ficam ligadas a ele por `orders.promo_code_id`.

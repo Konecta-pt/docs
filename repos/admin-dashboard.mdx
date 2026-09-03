@@ -38,6 +38,17 @@ mais de 100 encomendas. O valor certo está no Overview, vindo do `getDashboardS
 A Infra eram 53 linhas com dois links do OneUptime — estão no cabeçalho de Settings.
 </Note>
 
+<Note>
+**Orders abre com os pendentes escondidos.** O filtro de estado arranca em *Todos menos
+pendentes*, porque um pedido pendente é um carrinho abandonado — ruído em cima dos
+pedidos que interessam. Não se apaga nada: o estado continua na base de dados e
+*Todos os estados* (ou *Pendente*) traz tudo de volta num clique, para o dia em que se
+quiser recuperar essas encomendas.
+
+O contador do cabeçalho continua a ser o total real do servidor e acrescenta
+`· pendentes ocultos`, para o número não parecer que anda a mentir.
+</Note>
+
 ## Códigos promocionais com âmbito e cards de campanha
 
 Em **Promo Codes**, o `PromoScopeFields` escolhe o âmbito do código: **Todos**,

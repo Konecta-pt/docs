@@ -101,6 +101,20 @@ usos para 2 vendas**: as outras quatro nunca foram pagas. Com uma conversão de 
 o `uses_count` como vendas inflaciona o número em quatro vezes.
 </Warning>
 
+### Receita e desconto dado são coisas diferentes
+
+| Coluna | O que é |
+| --- | --- |
+| **Receita** | o dinheiro que **entrou** — `Σ price_cents − refunded_cents` das vendas pagas |
+| **Desconto dado** | o que o código **custou** — `Σ original_price_cents − price_cents` |
+
+<Note>
+Sem a segunda, um código de 100% parece inofensivo: o `BEATRIZKON100` mostrava traço
+na receita, como se não tivesse feito nada, quando na verdade deu **28,21 €** de
+desconto em duas encomendas. Os dois valores estão com IVA, por isso a diferença é o
+desconto tal como o cliente o viu.
+</Note>
+
 As vendas saem de `orders.promo_code_id` com estado `paid` ou `completed`
 (`getPromoSales()` em `src/lib/api.ts`). Quando há encomendas criadas que nunca foram
 pagas, a linha diz quantas são, a amarelo — é informação útil sobre o código, não ruído.

@@ -257,6 +257,41 @@ A migration é `API-BACKEND/migrations/add_promo_scope.sql`, aplicada em produç
 **2026-09-02**. Aplica-a antes de subir este código para um ambiente novo.
 </Warning>
 
+## Alerta de live chat no Telegram
+
+Quando um cliente escreve a **primeira** mensagem de uma conversa, o worker manda um
+alerta ao admin por Telegram (`services/admin-notify.ts`). Dispara nas duas rotas de
+mensagem: a pública (`POST /api/v1/konecta/chat/message`) e a autenticada
+(`POST /api/v1/konecta/chat/conversation/:id/messages`).
+
+O alerta leva o número do ticket (`#001`), o nome e o email do cliente, os primeiros
+300 caracteres da mensagem e o link para `https://admin.konecta.pt/support`.
+
+<Note>
+Dispara na **primeira mensagem**, não na criação da conversa. O widget do site cria a
+conversa mal o cliente abre o balão, antes de escrever seja o que for — notificar aí
+enchia o Telegram de conversas vazias.
+</Note>
+
+A idempotência é o próprio `UPDATE`: o worker escreve `admin_notified = true` **onde
+ainda era `false`** e só envia se a linha voltar. Duas mensagens quase simultâneas não
+geram dois alertas, porque só a primeira ganha a transição.
+
+A chamada vai sempre em `c.executionCtx.waitUntil(...)`, nunca com `await`. Se o
+Telegram estiver em baixo ou lento, a mensagem do cliente é gravada e respondida na
+mesma.
+
+<Warning>
+`TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` são **opcionais**. Sem eles o worker escreve
+um aviso no log e salta o envio: o chat continua a funcionar, tu é que não ficas a
+saber que alguém escreveu.
+
+A migration é `API-BACKEND/migrations/add_chat_ticket_and_notify.sql`
+(`chat_conversations.ticket_number` + `admin_notified`). Sem ela o `UPDATE` falha
+**dentro do `waitUntil`**, ou seja em silêncio: a mensagem do cliente é gravada, o
+alerta nunca sai e nada na resposta HTTP denuncia o problema.
+</Warning>
+
 ## Emails transacionais (`services/email.ts`)
 
 Resend por `fetch` direto, sem SDK. Saem de **`suporte@konecta.pt`** — o mesmo

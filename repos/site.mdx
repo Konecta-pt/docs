@@ -334,6 +334,30 @@ anunciava que todos os destinos tinham mudado. Uma data que muda sempre não dis
 nada — e o Google acaba por ignorar as datas do ficheiro inteiro, incluindo as do blog.
 Sem data é melhor do que com data falsa.
 
+## O chat pede nome e email antes de começar
+
+Um visitante anónimo não abre conversa sem se identificar: o `ChatWidget` mostra um
+formulário com **nome**, **email** e uma caixa de **consentimento RGPD** obrigatória.
+Quem tem sessão iniciada salta o passo — já está identificado.
+
+O que fica no `localStorage` do visitante:
+
+| Chave | O quê |
+| --- | --- |
+| `konecta_chat_uid` | o id anónimo (`web_...`), o mesmo que vai para `chat_conversations.user_id` |
+| `konecta_chat_name` · `konecta_chat_email` | a identidade, reutilizada nas visitas seguintes |
+| `konecta_chat_consent` | a data ISO em que o visitante deu o consentimento |
+
+<Note>
+A identidade persiste, por isso a segunda visita do mesmo browser não volta a pedir
+nada — e o admin vê **1ª visita vs recorrente** por cruzar este id com as conversas
+anteriores. Limpar os dados do site apaga a identidade e o visitante volta a ser novo.
+</Note>
+
+Sem isto, tanto o painel como o [alerta de Telegram](/repos/api-backend) mostravam
+"Visitante" e um email fabricado (`visitante_<6 dígitos>@konecta.pt`) — que continua a
+ser o que sai quando o email não é conhecido.
+
 ## Códigos promocionais que chegam pelo link (`?promo=`)
 
 O `?promo=` é lido em `/destinations` e na página do plano e guardado em

@@ -115,6 +115,111 @@ que nenhum outro relatório mostra: o Google ter escolhido uma canónica diferen
 declarada pela página.
 </Warning>
 
+## Overview: o painel de lucro
+
+O bloco **Lucro** mostra o P&L das vendas do período escolhido (7d/30d/90d), em cinco
+números: **bruto cobrado**, **IVA**, **custo dos planos**, **taxas Stripe** e **lucro**,
+mais a margem sobre a receita líquida.
+
+A conta, feita em `getProfitStats()` (`src/lib/api.ts`), sobre os pedidos `paid` e
+`completed` do período:
+
+```
+bruto    = Σ orders.price_cents − Σ orders.refunded_cents   (já com IVA)
+IVA      = bruto × 23/123
+líquido  = bruto − IVA
+custo    = Σ esim_products.cost_cents dos produtos vendidos  (sem IVA)
+lucro    = líquido − custo − taxas Stripe
+```
+
+<Note>
+As duas pontas seguem a convenção do [API-BACKEND](/repos/api-backend): `orders` está
+**com IVA**, `esim_products.cost_cents` está **sem IVA**. Por isso o IVA sai do bruto
+(`23/123`) e não se soma nada ao custo. Somar IVA outra vez a qualquer um dos lados
+duplica o imposto e o lucro passa a ficção.
+</Note>
+
+As taxas são as **reais** da Stripe — a soma do campo `fee` das balance transactions do
+período (`GET /api/v1/admin/balance-transactions?created_gte=`), não uma percentagem
+inventada. Se a Stripe não responder, o painel diz que o lucro está **por cima** em vez
+de fingir que as taxas são zero. Acima de 100 transações no período o valor é um mínimo,
+e o painel avisa.
+
+<Warning>
+Um pedido entregue a **0 €** — os antigos checkouts de demonstração — não dá receita mas
+o custo do plano conta à mesma, por isso puxa o lucro para baixo e pode pô-lo negativo.
+O painel conta quantos são, para saberes se o número vermelho és tu a vender barato ou
+apenas eSIMs oferecidos.
+
+Não há FK entre `orders.esim_product_id` e `esim_products.id`: o custo vem de uma segunda
+query e de um `Map`, não de um embed do PostgREST. Um pedido cujo produto tenha
+desaparecido do catálogo entra com **custo zero** e infla o lucro.
+</Warning>
+
+## Support: ticket e ficha do cliente
+
+A lista e o cabeçalho da conversa mostram o **número do ticket** (`#001`), o mesmo
+`chat_conversations.ticket_number` que vai no [alerta de Telegram](/repos/api-backend).
+Um nome genérico "Visitante" cai para o email, para a lista não ficar cheia de linhas
+iguais.
+
+**Ver perfil** abre o `UserProfileModal` por cima da conversa, em vez de te tirar do
+chat. A ficha cruza o email do chat com uma conta real (`getChatUserProfile`): contacto,
+pedidos, total gasto e eSIMs. Procura por **email da conta e id de visitante**, por isso
+apanha compras feitas antes do registo.
+
+Quem nunca comprou não fica com uma ficha vazia: mostra **primeira visita** ou
+**visitante recorrente** e o número de conversas anteriores.
+
+## Settings: estado real dos serviços
+
+O bloco de estado deixou de ser mockup. O `GET /api/v1/admin/status` faz health-check
+**server-side** aos três workers (`api.konecta.pt`, `payments.konecta.pt`,
+`eu-esims.konecta.pt`), com timeout de 5 s, e devolve código HTTP, latência, `env`,
+versão e região. A página recarrega sozinha a cada 30 s.
+
+<Note>
+O check é servidor→servidor de propósito: do browser do painel, em `admin.konecta.pt`,
+os `/health` dos workers seriam pedidos cross-origin e o CORS bloqueava a leitura.
+</Note>
+
+O mesmo endpoint reporta a **presença** (`true`/`false`, nunca o valor) de
+`CF_ACCESS_AUD`, `STRIPE_SECRET_KEY`, `ESIMS_SYNC_SECRET`, `RESEND_API_KEY` e
+`ADMIN_EMAILS`, mais o modo Stripe deduzido do prefixo `sk_live_`. Os links do
+OneUptime — o estado público e os comunicados — estão no cabeçalho desta página.
+
+## Emails: multi-seleção e envio um a um
+
+Os destinatários escolhem-se por checkbox na lista de clientes, com **selecionar todos
+(filtrados)** a respeitar a pesquisa. A pré-visualização atualiza enquanto escreves, no
+template da marca.
+
+Enviar a mais do que um cliente pede confirmação e depois faz **um pedido por
+destinatário**, em série: cada cliente recebe uma cópia individual e vê só o seu
+endereço. Uma falha não interrompe as restantes — no fim aparece
+`X enviados, Y falharam` com a **causa real** do primeiro erro (por exemplo
+`RESEND_API_KEY não configurada`), em vez de um "erro ao enviar" genérico.
+
+<Warning>
+Não há fila nem retry. A barra de progresso conta os envios feitos, mas fechar o
+separador a meio deixa os restantes por enviar, sem registo de onde ficou. Para uma
+campanha grande, é melhor não ser por aqui.
+</Warning>
+
+## Campaigns: gerar o link da campanha
+
+O `CampaignLinkPanel` monta o link partilhável a partir do âmbito do código:
+`https://konecta.pt/pt/destinations?...&promo=<código>`. Continente vai em `?continent=`,
+país e produto vão em `?search=`.
+
+<Note>
+O filtro de país usa o **nome** do país, não o código ISO: o `search` por código
+sobre-selecionava (procurar "FR" apanhava África). Como o site não tem página por
+produto, um código com âmbito de produto leva ao **país** desse produto — e se o produto
+não estiver na lista carregada, o link vai sem filtro nenhum. O código continua a
+aplicar-se no checkout; só não pré-filtra os destinos.
+</Note>
+
 ## A API admin (`functions/_lib/app.ts`)
 
 É uma API **same-origin**: não emite CORS permissivo, por isso o browser bloqueia
@@ -145,7 +250,7 @@ são genéricos — nunca vai stack trace para o browser.
 | --- | --- | --- |
 | `GET` | `/api/v1/admin/config` | modo (`live`/`test`, deduzido do prefixo da chave), conta, moeda, `charges_enabled`, `payouts_enabled` |
 | `GET` | `/api/v1/admin/balance` | |
-| `GET` | `/api/v1/admin/balance-transactions` | paginado |
+| `GET` | `/api/v1/admin/balance-transactions` | paginado. `?created_gte=<epoch s>` limita ao período — é assim que o painel de lucro soma só as taxas que interessam |
 | `GET` | `/api/v1/admin/payouts` | |
 | `GET` | `/api/v1/admin/events` | |
 
@@ -190,6 +295,10 @@ sem impedir um segundo reembolso intencional. A proteção contra duplo clique e
 | --- | --- | --- |
 | `POST` | `/api/v1/admin/esim-products/sync/:provider?` | dispara o sync do catálogo no worker de eSIMs (só `esimcard`). Autentica-se com `ESIMS_SYNC_SECRET`, **server-only** — nunca com prefixo `VITE_`. |
 | `POST` | `/api/v1/admin/email/send` | envio via **Resend**, `multipart/form-data`, anexo até 10 MB. De `Konecta <noreply@konecta.pt>`, `reply_to` d. `business@konecta.pt`, embrulhado no template da marca. |
+| `GET` | `/api/v1/admin/status` | health-check server-side aos três workers + presença dos secrets deste projeto (ver acima) |
+| `GET` | `/api/v1/admin/seo/audit` | auditoria do konecta.pt (sitemap, robots, amostra de páginas) |
+| `GET` | `/api/v1/admin/seo/inspect` | *URL Inspection* da Search Console para **um** URL (quota 2000/dia) |
+| `GET` | `/api/v1/admin/seo/search-console` | *Search Analytics*: cliques, impressões, posição |
 
 ## Variáveis de ambiente
 

@@ -59,7 +59,7 @@ de extraída.
 | `referral_uses` | `referrer_user_id`, `referred_user_id`, `referral_code`, `discount_cents` (d. 300) | um utilizador só pode ser referido uma vez |
 | `reviews` | `user_id`, `esim_id`, `order_id`, `rating` smallint, `comment` | |
 | `campaigns` | `title`, `badge`, `badge_color` (d. `#E71A5F`), `image_url`, `esim_product_id`, `country_code`, `promo_code`, `starts_at`, `ends_at`, `sort_order` | banners da home. `promo_code` guarda o **código em texto**, não um FK — apagar o código não parte o card |
-| `chat_conversations` | `user_id`, `status` (d. `open`), `last_message`, `unread_admin`, `unread_user` | suporte live |
+| `chat_conversations` | `user_id`, `user_email`, `user_name`, `status` (d. `open`), `last_message`, `unread_admin`, `unread_user`, `ticket_number` (`BIGSERIAL`), `admin_notified` (d. `false`) | suporte live. `user_id` de um visitante anónimo do site começa por `web_`. O `ticket_number` é o `#001` do alerta e do painel; o `admin_notified` é a guarda de idempotência do [alerta de Telegram](/repos/api-backend) |
 | `chat_messages` | `conversation_id`, `sender_type`, `content`, `read_at` | |
 
 ### Notificações

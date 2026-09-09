@@ -252,6 +252,26 @@ Os textos legais (`/terms`, `/privacy`) continuam só com título e descrição:
 texto vive em JSX dentro dos componentes, não em strings, e um resumo escrito à
 mão aqui seria texto legal a divergir do que vincula.
 
+## Blog: artigos podem existir num só idioma
+
+`blog.data.json` aceita `langs` por artigo (ausente = os dois). Os 25 artigos de
+09/09/2026 são `["pt"]`: o mercado é Portugal, e 25 traduções fracas seriam 25
+páginas `/en` a competir por nada — o mesmo erro do `/en/terms`.
+
+O `langs` propaga-se aos quatro sítios que têm de concordar, senão o Google
+recebe instruções contraditórias:
+
+| Onde | O que muda |
+|---|---|
+| `build-seo.mjs` | o `<loc>` só sai nos idiomas do artigo |
+| `prerender.mjs` | não escreve o ficheiro, e o `hreflang` não anuncia o par |
+| `blog.ts` | o índice `/en/blog` não lista o que não pode abrir |
+| `functions/{pt,en}/blog/[[path]].ts` | `/en/blog/<artigo-pt>` → 301 `/pt/blog/...` |
+
+A função também resolve o que nunca esteve resolvido: `/pt/blog/nao-existe`
+respondia 200 com a home. Os slugs vêm de `src/lib/blog-slugs.generated.ts`,
+gerado pelo `build-seo.mjs`.
+
 ## Identidade da marca: uma entidade, no shell
 
 O `index.html` declara um `@graph` com `OnlineStore` (`#org`), `WebSite` (`#site`)

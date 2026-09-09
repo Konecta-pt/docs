@@ -28,7 +28,20 @@ fallback do SPA.
 | `/avaliar` | `https://g.page/r/CUTUys3ErOTGEAE/review` | 302 |
 | `/<rota>` sem idioma | `/pt/<rota>` | 301 (18 regras) |
 | `/en/terms`, `/en/privacy` | `/pt/terms`, `/pt/privacy` | 301 |
-| `/pt/esim/<slug-EN>` | `/pt/esim/<slug-PT>` | 301 (500 regras) |
+
+<Warning>
+**A Pages aplica só as primeiras ~119 regras deste ficheiro** e ignora as
+restantes em silêncio. Verificado em produção a 09/09/2026 contra o ficheiro
+deployado: a regra #119 redirecionava, a #120 e as seguintes respondiam 200.
+
+O ficheiro tinha 523 regras — as ~400 que sobravam eram os slugs de país do idioma
+errado, e todas elas continuaram a servir a **home portuguesa com 200 e canonical
+para `/pt`**. É a fábrica dos "Soft 404" e das "página duplicada, o Google escolheu
+uma canónica diferente" da Search Console.
+
+Esses slugs passaram para uma Pages Function (a seguir). **Mantém este ficheiro
+curto** — tudo o que aqui está tem de caber nesse limite.
+</Warning>
 
 <Note>
 O `/avaliar` não existe para o site — existe para o **email de pedido de avaliação**
@@ -52,20 +65,12 @@ Vão para `/pt` e não para o idioma detetado porque um ficheiro estático não 
 nada, e `/pt` é o que o `x-default` já anuncia.
 </Warning>
 
-<Warning>
-As 500 regras de slug existem porque o router aceita **qualquer** slug debaixo de
-qualquer idioma. `/pt/esim/algeria` (nome inglês em português) não está no sitemap
-mas respondia **200** com o shell do SPA — um soft 404. Cada país existia assim em
-quatro endereços, e o Google chegou a indexar `/pt/esim/japan/`, `/en/esim/irlanda`
-e `/pt/esim/maldives`.
-
-São 301 e não 404 de propósito: os URLs errados já estão indexados, e redirecionar
-junta o sinal na página certa em vez de o deitar fora.
-
-Cada país gera **quatro** regras, não duas. O `_redirects` compara o caminho
-literalmente: uma regra para `/pt/esim/egypt` **não** apanha `/pt/esim/egypt/`, e é
-a forma com barra que o Google costuma ter indexada.
-</Warning>
+<Note>
+Os slugs do idioma errado (`/pt/esim/japan`, `/en/esim/japao`) são resolvidos pela
+função `functions/{pt,en}/esim/[[path]].ts`, não por regras. São 301 e não 404 de
+propósito: os URLs errados já estão indexados, e redirecionar junta o sinal na
+página certa em vez de o deitar fora.
+</Note>
 
 <Warning>
 **O `_redirects` não suporta o status 404.** Escreve-se a regra, o deploy passa, e
@@ -125,6 +130,32 @@ limpava-a no evento `load` — ou seja, era limpa pela própria recarga que tinh
 acabado de desencadear. Nunca guardou nada. Agora é um carimbo de tempo, no máximo
 uma recarga por minuto.
 </Warning>
+
+## `/{lang}/esim/*` é resolvido por uma função
+
+`functions/pt/esim/[[path]].ts` e `functions/en/esim/[[path]].ts` decidem, num só
+salto, o que responder a um endereço de destino:
+
+| Pedido | Resposta |
+|---|---|
+| `/pt/esim/japao` | 200, o ficheiro pré-renderizado |
+| `/pt/esim/japao/` · `/pt/esim/Japao` | 301 para a forma canónica |
+| `/pt/esim/japan` (slug EN em PT) | 301 para `/pt/esim/japao` |
+| `/pt/esim` | 301 para `/pt/destinations` |
+| `/pt/esim/qualquer-coisa` | **404 a sério** |
+
+A lista de slugs válidos e o mapa idioma-errado→certo vivem em
+`src/lib/esim-slugs.generated.ts`, **gerado** pelo `build-seo.mjs` a partir do
+catálogo e versionado — se a API estiver em baixo durante uma build, o ficheiro
+antigo continua a valer (o script só o reescreve com mais de 50 países).
+
+A lógica está em `src/lib/esimSlugRoute.ts`, com testes em
+`src/test/esimSlugRoute.test.ts`.
+
+<Warning>
+Resolve tudo **num só salto**. Comparar o caminho já normalizado em vez do pedido
+faz `/pt/esim/japao/` cair no `next()`, que não encontra ficheiro com barra e serve
+o `index.html` — a home, com 200. É exactamente o bug que a função veio resolver.</Warning>
 
 ## O 404 vive em `functions/`, não num `404.html`
 
@@ -189,6 +220,52 @@ canónicos, que rankeiam muito melhor. Impressões perdidas na página 7 não va
 Não voltes a "validar a correção" na Search Console para estes URLs: eles vão
 continuar a redirecionar para sempre, por isso a validação falha sempre.
 </Warning>
+
+## As páginas âncora servem o texto que a app mostra
+
+O `prerender.mjs` lê o `src/lib/translations.ts` — o ficheiro é um objeto literal
+de strings, por isso o corpo é avaliado como JS, sem compilar TS — e escreve o
+mesmo texto que o React monta. O `tr()` **rebenta a build** se a chave não existir,
+para uma chave renomeada não apagar uma secção inteira do HTML em silêncio.
+
+<Warning>
+Até 09/09/2026 estas páginas serviam entre 16 e 35 palavras: um `<h1>` igual ao
+`<title>` e a description repetida como parágrafo. A home não tinha **um único
+link** — os 210 destinos dependiam todos do link vindo de `/destinations` — e era
+a página que tem de ganhar as pesquisas pela marca.
+
+Eram 16 URLs, exactamente o número que a Search Console reportava em "Rastreada –
+atualmente não indexada" a 04/09/2026: `/pt` · `/en` · `/help` · `/business` ·
+`/vpn` · `/about` · `/contact` · `/blog` (×2 idiomas) · `/terms` · `/privacy`.
+</Warning>
+
+| Página | Antes | Agora |
+|---|---|---|
+| `/pt` (home) | 29 palavras, 0 links | 233 palavras, 18 links |
+| `/pt/help` | 21 | 385 + `FAQPage` (as 12 perguntas do `Help.tsx`) |
+| `/pt/business` | 33 | 413 |
+| `/pt/about` | 35 | 237 |
+| `/pt/vpn` | 20 | 177 |
+| `/pt/blog` | 33 | 155 (título + excerto por artigo) |
+
+Os textos legais (`/terms`, `/privacy`) continuam só com título e descrição: o
+texto vive em JSX dentro dos componentes, não em strings, e um resumo escrito à
+mão aqui seria texto legal a divergir do que vincula.
+
+## Identidade da marca: uma entidade, no shell
+
+O `index.html` declara um `@graph` com `OnlineStore` (`#org`), `WebSite` (`#site`)
+e `Service`, e vai em todas as páginas porque é o shell que o prerender usa.
+
+<Warning>
+Havia **duas** `Organization` em JSON-LD com propriedades diferentes — a do shell e
+outra injetada só na home. Duas entidades com o mesmo nome é o oposto do que se
+quer quando já existe uma colisão de marca com o **Grupo Konecta** (BPO, escritórios
+em Lisboa), que é quem o Google mostra primeiro para "konecta".
+
+`OnlineStore` em vez de `Organization` diz que esta Konecta é uma loja que vende
+eSIM. O `sameAs` aponta para os mesmos perfis que o rodapé — os dois sinais têm de
+concordar para o Google os juntar na mesma entidade.</Warning>
 
 ## Tudo o que está no sitemap tem de ser pré-renderizado
 

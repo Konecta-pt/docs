@@ -519,12 +519,29 @@ imposto (23/123) à parte — é assim que o GA quer receber.
 relatórios como tráfego real, e com o volume actual meia dúzia de recargas da tua
 própria página chegava para tornar as métricas inúteis.
 
-E arranca **sem cookies**: o Consent Mode entra com tudo em `denied`
+E na Europa arranca **sem cookies**: o Consent Mode entra com tudo em `denied`
 (`analytics_storage`, `ad_storage`, `ad_user_data`, `ad_personalization`) até o
 visitante aceitar no banner. O GA4 conta visitas e atribui canais em modo cookieless,
 mas não guarda identificadores no browser — logo os números de *utilizadores* são
 estimativas e não há retorno de visitante fiável.
 </Warning>
+
+### O `denied` é por região, não global
+
+`PEDE_CONSENTIMENTO` em `src/lib/visitor.ts` lista os 27 do EEE mais `IS`, `LI`, `NO`,
+`GB` e `CH`. São duas declarações de `consent default`: a primeira negada **com
+`region:`**, a segunda concedida sem região — o Google aplica a mais específica.
+
+<Warning>
+**Um `denied` global fazia o Google Ads acusar "taxa de consentimento de 0%".** Quem
+chega do Brasil ou dos EUA não tem de ver banner para ser medido, e com tudo negado
+perdias a medição e a personalização desse tráfego todo. Se acrescentares um país à
+lista, é a medição dele que passa a depender do "Aceitar".
+</Warning>
+
+Por isso `recusarCookies()` envia um `consent update` **negado** e não se limita a
+gravar no `localStorage`: fora do EEE o arranque é concedido, e sem esse update o botão
+**Recusar** não fazia nada.
 
 ## Google Ads no mesmo gtag do GA4
 

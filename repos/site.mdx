@@ -519,12 +519,54 @@ imposto (23/123) à parte — é assim que o GA quer receber.
 relatórios como tráfego real, e com o volume actual meia dúzia de recargas da tua
 própria página chegava para tornar as métricas inúteis.
 
-E arranca **sem cookies**: o site não tem banner de consentimento, por isso o Consent
-Mode entra com `analytics_storage: 'denied'`. O GA4 conta visitas e atribui canais em
-modo cookieless, mas não guarda identificadores no browser — logo os números de
-*utilizadores* são estimativas e não há retorno de visitante fiável. Quando existir
-banner, chamar `permitirCookiesAnalytics()` depois do "aceito" liga o resto.
+E arranca **sem cookies**: o Consent Mode entra com tudo em `denied`
+(`analytics_storage`, `ad_storage`, `ad_user_data`, `ad_personalization`) até o
+visitante aceitar no banner. O GA4 conta visitas e atribui canais em modo cookieless,
+mas não guarda identificadores no browser — logo os números de *utilizadores* são
+estimativas e não há retorno de visitante fiável.
 </Warning>
+
+## Google Ads no mesmo gtag do GA4
+
+A tag de conversão `AW-18446397409` é configurada **no gtag.js que o GA4 já carregou**
+— não se carrega o script duas vezes, e o Ads herda a guarda de domínio: fora de
+`konecta.pt` não envia nada.
+
+| Variável | Omissão | Para quê |
+| --- | --- | --- |
+| `VITE_ADS_ID` | `AW-18446397409` | a tag de conversão |
+| `VITE_ADS_PURCHASE_LABEL` | *(vazio)* | o rótulo da conversão de compra |
+
+<Warning>
+**Sem `VITE_ADS_PURCHASE_LABEL` não há conversão direta no Ads.** O `purchase` do GA4
+continua a ser enviado e o Ads consegue importá-lo se as contas estiverem ligadas, mas
+o evento `conversion` (`send_to: AW-…/LABEL`) só dispara com o rótulo preenchido. O
+rótulo cria-se na conta Google Ads em **Objetivos → Conversões → Nova → Website →
+Compra** e tem de ser posto nas variáveis de build do Pages — não está em código.
+</Warning>
+
+A conversão leva o `transaction_id` da encomenda, o mesmo do `purchase` do GA4, para o
+Ads desduplicar se a venda lhe chegar pelos dois caminhos. E `registarInicioCheckout()`
+dispara `begin_checkout` no clique em **Comprar** (`PlanDetails`) — serve o funil e pode
+ser conversão secundária enquanto não há compras suficientes para otimizar.
+
+### O banner de cookies existe por causa do Ads
+
+`CookieConsent` (`src/components/CookieConsent.tsx`) aparece uma vez em todas as
+páginas, com **Aceitar** e **Recusar**. Sem ele o consentimento arrancava negado e não
+havia como concedê-lo: o Ads recebia conversões mas não as conseguia atribuir ao clique
+no anúncio.
+
+- **Aceitar** → `permitirCookies()` liga analytics *e* anúncios (`consent: update`).
+- **Recusar** → fica tudo negado; o site funciona na mesma.
+
+A resposta fica no `localStorage` (`konecta_analytics_consent` ou
+`konecta_analytics_refused`) e o banner não volta a aparecer.
+
+<Note>
+`url_passthrough: true` faz o Google levar o `gclid` no URL durante a sessão em vez de
+o guardar em cookie — é o que permite atribuir a conversão a quem **recusou** cookies.
+</Note>
 
 ## O chat pede nome e email antes de começar
 

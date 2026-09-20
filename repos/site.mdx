@@ -554,16 +554,20 @@ A tag de conversão `AW-18446397409` é configurada **no gtag.js que o GA4 já c
 | `VITE_ADS_ID` | `AW-18446397409` | a tag de conversão |
 | `VITE_ADS_PURCHASE_LABEL` | *(vazio)* | o rótulo da conversão de compra |
 
-<Warning>
-**Sem `VITE_ADS_PURCHASE_LABEL` não há conversão direta no Ads.** O `purchase` do GA4
-continua a ser enviado e o Ads consegue importá-lo se as contas estiverem ligadas, mas
-o evento `conversion` (`send_to: AW-…/LABEL`) só dispara com o rótulo preenchido. O
-rótulo cria-se na conta Google Ads em **Objetivos → Conversões → Nova → Website →
-Compra** e tem de ser posto nas variáveis de build do Pages — não está em código.
-</Warning>
+<Note>
+**`VITE_ADS_PURCHASE_LABEL` está vazio de propósito, e assim deve ficar.** A conta Ads
+recebe as compras **importadas do GA4** (as ações *Konecta PT (web) purchase* e
+*Iniciar pagamento*, do tipo `Website (Google Analytics (GA4))`). A ação nativa de
+Website foi removida da conta. Preencher o rótulo acrescentaria uma tag própria a
+medir a mesma venda em paralelo com a importação — duas entradas para uma compra.
 
-A conversão leva o `transaction_id` da encomenda, o mesmo do `purchase` do GA4, para o
-Ads desduplicar se a venda lhe chegar pelos dois caminhos. E `registarInicioCheckout()`
+Só preenche o rótulo se algum dia trocares a importação por medição direta: cria a ação
+em **Objetivos → Conversões → Nova → Website → Compra**, copia a parte depois da barra
+do `send_to`, e desliga a importação do GA4.
+</Note>
+
+A conversão direta, quando existe, leva o `transaction_id` da encomenda — o mesmo do
+`purchase` do GA4 — para o Ads desduplicar. E `registarInicioCheckout()`
 dispara `begin_checkout` no clique em **Comprar** (`PlanDetails`) — serve o funil e pode
 ser conversão secundária enquanto não há compras suficientes para otimizar.
 

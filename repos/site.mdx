@@ -679,6 +679,27 @@ com a mensagem em português vinda do backend — a página mostra um erro gené
 traduzido em vez do texto do servidor.
 </Note>
 
+## O primeiro clique num destino relacionado não navegava
+
+Saltar de `/pt/esim/espanha` para `/pt/esim/italia` **não desmonta** a `PlanDetails`:
+é a mesma rota com outro `:slug`. O país resolvido continua a ser o anterior até a
+chamada ao catálogo responder — e o efeito que força o URL canónico corre nesse mesmo
+commit, com os valores do render anterior. Resultado: clicavas em Itália e ficavas em
+Espanha; ao segundo clique já ia.
+
+<Warning>
+**Com latência, dois países entravam em ciclo.** Cada navegação lançava uma chamada
+nova cuja resposta contradizia o URL entretanto mudado, e o par saltava um para o
+outro sem parar — no Google Ads via-se como centenas de `page_view` por segundo a
+alternar entre dois destinos. O `trackPage` não trava isto: só ignora repetições da
+**mesma** página, e um ping-pong A→B→A passa pela guarda.
+</Warning>
+
+O redirecionamento só acontece se o país resolvido pertencer mesmo ao URL atual
+(`matchCountry([resolved], code)`). Isso mantém vivo aquilo para que o canónico
+existe — `/pt/esim/italy` e `/pt/plan/IT` continuam a ir parar a `/pt/esim/italia` —
+e rejeita apenas o país que sobrou da página anterior.
+
 ## Links internos entre destinos
 
 Cada página de país mostra **oito destinos do mesmo continente** mais um link para

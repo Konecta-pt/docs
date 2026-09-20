@@ -584,10 +584,15 @@ no anúncio.
 A resposta fica no `localStorage` (`konecta_analytics_consent` ou
 `konecta_analytics_refused`) e o banner não volta a aparecer.
 
-<Note>
-`url_passthrough: true` faz o Google levar o `gclid` no URL durante a sessão em vez de
-o guardar em cookie — é o que permite atribuir a conversão a quem **recusou** cookies.
-</Note>
+<Warning>
+**Não ligues o `url_passthrough` do gtag neste site.** Ele existe para levar o `gclid`
+no URL em vez de cookie, e fá-lo decorando os **links internos** com `?_gl=…` — reescreve
+o endereço por fora do `react-router`. Numa SPA isso parte a navegação: o primeiro clique
+num destino relacionado mudava o URL para `/pt/esim/italia` mas a vista ficava no Reino
+Unido, e só o segundo clique navegava (aí o URL já estava decorado).
+
+Perde-se a atribuição do clique de quem **recusa** cookies. Vale mais a navegação.
+</Warning>
 
 ## O chat pede nome e email antes de começar
 

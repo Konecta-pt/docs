@@ -552,18 +552,33 @@ A tag de conversão `AW-18446397409` é configurada **no gtag.js que o GA4 já c
 | Variável | Omissão | Para quê |
 | --- | --- | --- |
 | `VITE_ADS_ID` | `AW-18446397409` | a tag de conversão |
-| `VITE_ADS_PURCHASE_LABEL` | *(vazio)* | o rótulo da conversão de compra |
+| `VITE_ADS_PURCHASE_LABEL` | `lelZCKyf7f8cEOHf9ttE` | o rótulo da conversão de compra |
+
+A compra é medida **diretamente por esta tag**, pela ação nativa *Compra* da conta Ads
+(**Website → Carregamento de página**). A conversão parte de `konecta.pt/checkout/success`,
+não de `pay.konecta.pt` — o domínio dos pagamentos não tem tag do Google nenhuma.
+
+<Warning>
+**A tag direta e a importação do GA4 não podem coexistir.** Até setembro de 2026 a conta
+recebia as compras importadas do GA4 (*Konecta PT (web) purchase* e *Iniciar pagamento*,
+do tipo `Website (Google Analytics (GA4))`) e este rótulo estava vazio de propósito.
+Ao ligar a medição direta essas ações importadas têm de ser desligadas na conta: as duas
+em paralelo medem a mesma venda e o Ads conta a compra **duas vezes**, o que faz o
+Smart Bidding otimizar para um número inflacionado e mostra metade do CPA real.
+
+Se um dia voltares à importação, esvazia o rótulo em `src/lib/visitor.ts` na mesma
+alteração em que a religas.
+</Warning>
 
 <Note>
-**`VITE_ADS_PURCHASE_LABEL` está vazio de propósito, e assim deve ficar.** A conta Ads
-recebe as compras **importadas do GA4** (as ações *Konecta PT (web) purchase* e
-*Iniciar pagamento*, do tipo `Website (Google Analytics (GA4))`). A ação nativa de
-Website foi removida da conta. Preencher o rótulo acrescentaria uma tag própria a
-medir a mesma venda em paralelo com a importação — duas entradas para uma compra.
+**A ação em Ads tem de estar em "Usar valores diferentes para cada conversão"**, com
+moeda **EUR** e contagem **Uma**. O snippet que o Ads mostra ao criar a ação vem sem
+`value` nem `currency` se a ação for criada sem valor — mas o código envia sempre o
+valor real da encomenda. Com a ação mal configurada o Ads ignora-o e ficas sem receita
+por campanha nem tROAS.
 
-Só preenche o rótulo se algum dia trocares a importação por medição direta: cria a ação
-em **Objetivos → Conversões → Nova → Website → Compra**, copia a parte depois da barra
-do `send_to`, e desliga a importação do GA4.
+Não coles o snippet que o Ads mostra: o `gtag('event', 'conversion', …)` já existe em
+`registarCompra()`, e a tag `AW-…` já carrega no gtag.js do GA4.
 </Note>
 
 A conversão direta, quando existe, leva o `transaction_id` da encomenda — o mesmo do

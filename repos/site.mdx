@@ -287,6 +287,31 @@ em Lisboa), que é quem o Google mostra primeiro para "konecta".
 eSIM. O `sameAs` aponta para os mesmos perfis que o rodapé — os dois sinais têm de
 concordar para o Google os juntar na mesma entidade.</Warning>
 
+### O site chama-se "Konecta eSIM" para o Google
+
+Três sinais, todos no shell, todos a dizer a mesma coisa à mesma entidade:
+
+- `og:site_name` e os `<title>` terminam em **"Konecta eSIM"**, não "Konecta" — é o
+  nome que se quer ver na linha do site nos resultados, e afasta-o do Grupo Konecta.
+- `disambiguatingDescription` no JSON-LD diz em texto **de quem não somos**. Aparece
+  **uma** vez como propriedade; um `grep -c` dá 2 porque o comentário HTML que a
+  explica também contém a palavra.
+- O favicon tem de ter **48px ou mais e ser múltiplo de 48** para o Google mostrar o K
+  ao lado do nome; o `.ico` antigo era só 32px e saía o globo genérico. Daí os
+  `favicon-96.png`, `favicon-192.png` e `apple-touch-icon.png`.
+
+<Warning>
+**Isto já desapareceu uma vez sem ninguém querer.** A 18/09/2026 o revert do PR #62
+(`b251480`), feito para corrigir o bug de navegação do `url_passthrough`, desfez o PR
+inteiro — e levou estes dois commits de SEO com ele. O Ads foi reposto com o fix; o
+SEO ficou desfeito três dias (o `favicon-96.png` devolvia `text/html`). Repostos por
+cherry-pick no PR #63.
+
+Se voltares a reverter um merge de `dev`, lê o `--stat` do revert e repõe o que não
+era o alvo. Para confirmar em produção:
+`curl -sSI https://konecta.pt/favicon-96.png | grep -i content-type` → `image/png`,
+e `curl -sS https://konecta.pt/pt | grep -o 'og:site_name" content="[^"]*"'` → `Konecta eSIM`.</Warning>
+
 ## Tudo o que está no sitemap tem de ser pré-renderizado
 
 O `scripts/prerender.mjs` escreve um ficheiro por rota. As que não escreve não

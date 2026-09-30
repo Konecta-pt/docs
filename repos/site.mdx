@@ -644,8 +644,11 @@ conta de anúncios:
 
 - O pagamento sai de `konecta.pt` para `pay.konecta.pt` e volta. O GA4 vê um referrer
   externo no regresso e abre sessão nova, atribuindo a compra a `pay.konecta.pt` em vez
-  do anúncio. Corriges isso pondo `pay.konecta.pt` em **Configure your domains** no data
-  stream do GA4 — mas continuas dependente do GA.
+  do anúncio. Atenuas isso em *Administrador → Fluxos de dados → o fluxo do site →
+  Configurar definições de etiquetas → Mostrar tudo → **Listar referências
+  indesejadas***, com a condição `pay.konecta.pt`. Não é em *Configurar os seus
+  domínios*: essa opção é para medição entre domínios e pressupõe gtag nos dois, e o
+  `pay.konecta.pt` não tem nenhum. Mesmo feito, continuas dependente do GA.
 - Quem recusa cookies não é medido de todo, e em Portugal o consentimento arranca
   negado.
 

@@ -694,6 +694,20 @@ O `Purchase` leva `eventID` igual ao id da encomenda. Se um dia acrescentares a
 Conversions API do lado do servidor, o Meta desduplica as duas cópias sozinho em vez de
 contar a venda a dobrar.
 
+| Variável | Omissão | Valor em produção |
+| --- | --- | --- |
+| `VITE_META_PIXEL_ID` | vazio (pixel desligado) | `1592885822293185`, definido nas Pages |
+
+Ao contrário do `VITE_GA_ID` e do `VITE_ADS_ID`, este não tem valor por omissão no
+código: um pixel errado a disparar num ambiente que não devia medir é pior do que não
+medir nada.
+
+<Warning>
+**Não coles o snippet que o Gestor de Eventos mostra.** O `fbq('init', …)` e o
+`PageView` já estão no `visitor.ts`. Colar o snippet no `index.html` carregava o pixel
+duas vezes e duplicava todas as conversões.
+</Warning>
+
 <Warning>
 Ao contrário do gtag, o pixel do Meta **não tem Consent Mode**: ou carrega, ou não
 carrega. Por isso `carregarMeta()` exige `temConsentimento()`, ou seja, um **Aceitar**

@@ -20,9 +20,9 @@ Functions** (Hono) em `functions/`. Protegido por **Cloudflare Access**.
 
 ## Páginas (`src/pages`)
 
-Overview (mapa de países), Orders, **Stripe**, Invoices, ESIMs, Products, Campaigns,
-PromoCodes, Competitors, SEO, Customers, Support (chat live), Emails, Notifications,
-Referrals, Reviews, Settings.
+Overview (mapa de países), Orders, **Stripe**, Invoices, ESIMs, Products, **Aquisição**,
+Campaigns, PromoCodes, Competitors, SEO, Customers, Support (chat live), Emails,
+Notifications, Referrals, Reviews, Settings.
 
 <Note>
 **Payments e Infra deixaram de existir** (2026-09-02). A página Payments listava
@@ -47,6 +47,55 @@ quiser recuperar essas encomendas.
 
 O contador do cabeçalho continua a ser o total real do servidor e acrescenta
 `· pendentes ocultos`, para o número não parecer que anda a mentir.
+</Note>
+
+## Aquisição: de onde vêm as visitas e quais dão dinheiro
+
+`/acquisition` (`src/pages/Acquisition.tsx`), alimentada por `getAquisicao()` em
+`src/lib/api.ts`. Responde à pergunta que o Overview não responde: o Overview mostra
+**quantas** encomendas morrem, esta mostra **de onde vieram** as que sobrevivem.
+
+Três blocos:
+
+- **De onde vêm as visitas** — referrer da primeira visita de cada visitante, de
+  `visitor_sessions`.
+- **De onde vêm as compras** — `orders.attribution`, a atribuição que viaja com a
+  encomenda. Ver [a coluna](/database).
+- **Encomendas que não deram dinheiro** — as que começaram o checkout e ficaram por
+  pagar, com o email do cliente para lhe escreveres. A coluna **Onde morreu** separa
+  quem desistiu *antes de pagar* (sem `payment_intent_id`) de quem falhou *no
+  pagamento* — são problemas diferentes e resolvem-se de maneiras diferentes.
+
+As reembolsadas ficam de fora das perdidas: houve venda e houve dinheiro.
+
+### O referrer vira canal por uma tabela, e a ordem manda
+
+`canalDeReferrer()` percorre `CANAIS`, uma lista de pares *regex → nome*. É uma tabela
+e não uma cadeia de `if`s para se verificar a ler. A ordem é que decide: `googleads` e
+`doubleclick` vêm **antes** de `google.`, senão os cliques pagos apareciam como
+pesquisa orgânica e o Ads levava o crédito da SEO.
+
+Um referrer que não bate em nenhuma linha não vira "Outro" — vira o próprio domínio.
+Um site desconhecido a mandar-te tráfego é informação, e "Outro" escondia-a.
+
+Para a compra, `canalDeCompra()` decide por ordem de confiança: `utm_source` primeiro,
+depois `gclid` (Google Ads) e `fbclid` (Meta), e só no fim o referrer.
+
+<Warning>
+**As compras anteriores a 30/09/2026 não têm origem e nunca terão.** A coluna
+`attribution` não existia, e a origem de uma visita não se recupera depois do facto. A
+página diz isto em vez de mostrar um gráfico vazio, porque um quadro em branco
+parece avaria.
+</Warning>
+
+<Note>
+**As contas internas saem daqui, como saem do Overview**, pelo mesmo `idsInternos()`.
+Sem isso os números mentem em grande: em 30/09/2026 havia 10 encomendas pendentes no
+valor de 461 €, e **8 delas, 432 €, eram testes nossos**. As reais eram duas, 29 €.
+Há também 5 `failed` e 5 `cancelled` na base de dados e **nenhuma é de um cliente**.
+
+O que isso quer dizer é o contrário do que o número bruto sugeria: de 11 encomendas
+reais, 9 foram pagas. O checkout não está partido — o que falta é gente a chegar lá.
 </Note>
 
 ## Códigos promocionais com âmbito e cards de campanha

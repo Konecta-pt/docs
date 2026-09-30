@@ -45,6 +45,17 @@ mesmo efeito prático (PR obrigatório + CI obrigatório + sem bypass) e funcion
 no **plano gratuito**.
 </Note>
 
+<Warning>
+**Esta proteção não está ativa** em `konecta.pt` nem em `API-BACKEND`, ao contrário do
+que esta página descrevia. Em 30/09/2026 um `git push origin main` direto passou nos
+dois repos, sem PR e sem esperar por nenhum check. O que está acima é a configuração
+**pretendida**, não a que existe.
+
+Enquanto assim for, um push distraído entra em produção sem revisão e sem CI: nos
+Workers dispara o `deploy-prod.yml`, nas Pages dispara o build de produção. Se queres o
+que a lista acima diz, tens de a configurar em *Settings → Branches*.
+</Warning>
+
 ## Como cada tipo de repo deploya
 
 ### Cloudflare Workers (API-BACKEND, API-ESIMS, API-PAYMENTS)
@@ -172,6 +183,29 @@ Build automático por push, gerido pela integração nativa Cloudflare Pages ↔
 - **Production branch = `main`** → domínio de produção.
 - Qualquer outra branch (ex.: `dev`) → **preview deployment** com URL próprio (ambiente de teste).
 - Variáveis de ambiente separadas: **Production** vs **Preview**.
+
+<Warning>
+**Um repo, um lockfile.** A Cloudflare escolhe o gestor de pacotes pelo lockfile que
+encontra: `bun.lock` → `bun install --frozen-lockfile`, senão `package-lock.json` →
+`npm ci`. Se o repo tiver os dois e só um for mantido, o build morre antes de compilar
+seja o que for:
+
+```
+error: lockfile had changes, but lockfile is frozen
+```
+
+Foi o que aconteceu ao `konecta.pt` em 30/09/2026: uma atualização de dependências
+feita com npm deixou o `bun.lock` para trás, e todos os builds seguintes falharam. O
+`bun.lock` foi apagado — nada no repo usava bun, nem `bunfig.toml`, nem scripts, nem
+workflows. O site compila com npm.
+
+A armadilha é que o erro não aponta para o commit culpado. Aparece no **build
+seguinte**, que pode ser de outra pessoa e de outra alteração, dias depois.
+</Warning>
+
+As variáveis `VITE_*` são lidas na **compilação**, não no browser. Guardar uma variável
+nova no painel não muda o site: tens de disparar um build (**Deployments** → `⋯` →
+**Retry deployment**) ou esperar pelo próximo push.
 
 ### Railway (LB e fallbacks)
 Deploy por push do repo conectado. Variáveis de ambiente no painel Railway.

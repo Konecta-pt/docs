@@ -97,6 +97,29 @@ prefixo do endereço ("Olá sccmpcnv"). O admin já fazia o join — só não ha
 | `GET` | `/api/v1/konecta/chat/conversation/:id/messages` |
 | `POST` | `/api/v1/konecta/chat/conversation/:id/messages` |
 
+### `/order/checkout` grava de onde veio a venda
+
+O corpo do pedido aceita um campo opcional `attribution`, que o site preenche com os
+parâmetros de campanha da primeira visita do cliente. O worker passa-o por
+`limparAtribuicao()` (`src/lib/attribution.ts`) e grava o resultado em
+`orders.attribution`.
+
+O filtro aceita **apenas** estas chaves — `utm_source`, `utm_medium`, `utm_campaign`,
+`utm_content`, `utm_term`, `gclid`, `fbclid`, `referrer`, `landing`. Descarta tudo o
+que não seja uma string não vazia, corta cada valor a 300 caracteres e devolve `null`
+quando não sobra nada.
+
+<Warning>
+Este campo vem do browser e não é de confiança. A lista de chaves é fechada de
+propósito: sem ela, o corpo do pedido passava a ser um sítio onde qualquer cliente
+escreve o que lhe apetece dentro de uma linha da tabela `orders`. Nada em
+`attribution` pode influenciar o preço, o produto ou o dono da encomenda — tudo isso
+continua a ser resolvido no servidor, como sempre foi.
+</Warning>
+
+Um pedido sem `attribution` continua a funcionar e deixa a coluna a `null`. É por isso
+que esta mudança entra em produção sem exigir que o site seja publicado primeiro.
+
 ## Admin (`adminRoutes`)
 
 | Método | Rota |

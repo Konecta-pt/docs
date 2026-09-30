@@ -502,17 +502,19 @@ anunciava que todos os destinos tinham mudado. Uma data que muda sempre não dis
 nada — e o Google acaba por ignorar as datas do ficheiro inteiro, incluindo as do blog.
 Sem data é melhor do que com data falsa.
 
-## Analytics: duas medições que respondem a perguntas diferentes
+## Analytics: quatro medições que respondem a perguntas diferentes
 
-O site mede duas vezes, de propósito, e cada uma responde a uma pergunta que a outra
-não consegue.
+O site mede quatro vezes, de propósito, e cada uma responde a uma pergunta que as
+outras não conseguem.
 
 | | O que responde | Onde vive |
 | --- | --- | --- |
 | Beacon próprio | *Quem* é este visitante — cruza a sessão com o chat e as compras pelo mesmo `web_...` | `visitor_sessions` na [base de dados](/database) |
 | Google Analytics 4 | *De onde* veio — canal, campanha, landing page, e liga-se à Search Console | conta GA `G-XPC3SF1LN0` |
+| Atribuição de primeiro toque | *De onde veio esta venda concreta* — sobrevive ao salto para `pay.konecta.pt` e à recusa de cookies | `orders.attribution` na [base de dados](/database) |
+| Meta Pixel | Conversões para os anúncios de Instagram e Facebook | conta Meta, via `VITE_META_PIXEL_ID` |
 
-Os dois são disparados pela mesma função, `trackPage()` em `src/lib/visitor.ts`, chamada
+Todas são disparadas pela mesma função, `trackPage()` em `src/lib/visitor.ts`, chamada
 pelo `VisitorTracker` a cada mudança de rota.
 
 <Note>
@@ -632,6 +634,71 @@ num destino relacionado mudava o URL para `/pt/esim/italia` mas a vista ficava n
 Unido, e só o segundo clique navegava (aí o URL já estava decorado).
 
 Perde-se a atribuição do clique de quem **recusa** cookies. Vale mais a navegação.
+</Warning>
+
+## A atribuição que não depende de ninguém
+
+O GA4 e o Ads respondem "de onde veio o tráfego". Nenhum dos dois responde com
+confiança a "de onde veio **esta** venda", por duas razões que não podes resolver na
+conta de anúncios:
+
+- O pagamento sai de `konecta.pt` para `pay.konecta.pt` e volta. O GA4 vê um referrer
+  externo no regresso e abre sessão nova, atribuindo a compra a `pay.konecta.pt` em vez
+  do anúncio. Corriges isso pondo `pay.konecta.pt` em **Configure your domains** no data
+  stream do GA4 — mas continuas dependente do GA.
+- Quem recusa cookies não é medido de todo, e em Portugal o consentimento arranca
+  negado.
+
+Por isso o site guarda a origem por fora. Na **primeira** visita, `capturarAtribuicao()`
+lê os parâmetros de campanha do URL e grava-os em `localStorage`
+(`konecta_attr`):
+
+| Guarda | De onde vem |
+| --- | --- |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` | Query string do URL de entrada |
+| `gclid` | Google Ads |
+| `fbclid` | Meta |
+| `referrer` | `document.referrer`, só quando é **externo** |
+| `landing` | `location.pathname`, sempre |
+
+Depois, `createCheckout()` em `src/lib/api.ts` envia esse objeto no
+`POST /order/checkout`, e o worker grava-o em
+[`orders.attribution`](/repos/api-backend). A partir daí respondes à pergunta com um
+`SELECT`, sem GA, sem consentimento e sem o Ads.
+
+<Note>
+**Primeiro toque ganha.** A função sai na primeira linha se já houver alguma coisa
+gravada. Quem chegou por um anúncio e voltou dias depois a escrever o endereço à mão
+continua a contar para o anúncio. O `landing` é gravado sempre, mesmo numa visita
+directa — é o que torna o registo não-vazio e fecha o primeiro toque, senão a visita
+seguinte (essa já com referrer interno) passava-se por primeira.
+</Note>
+
+Referrers de `konecta.pt` e subdomínios são ignorados de propósito. Sem essa regra, a
+segunda página que o visitante abrisse apagava a origem real.
+
+## Meta Pixel: só arranca com consentimento explícito
+
+`VITE_META_PIXEL_ID` liga o pixel do Instagram e do Facebook. **Vazio por omissão** —
+enquanto não configurares a variável nas Pages, o pixel não carrega e nada muda.
+
+Eventos enviados, sempre a par dos equivalentes do GA4:
+
+| Evento Meta | Quando | Função |
+| --- | --- | --- |
+| `PageView` | Cada mudança de rota | `trackPage()` |
+| `InitiateCheckout` | Clique em **Comprar** | `registarInicioCheckout()` |
+| `Purchase` | Página de sucesso, encomenda paga | `registarCompra()` |
+
+O `Purchase` leva `eventID` igual ao id da encomenda. Se um dia acrescentares a
+Conversions API do lado do servidor, o Meta desduplica as duas cópias sozinho em vez de
+contar a venda a dobrar.
+
+<Warning>
+Ao contrário do gtag, o pixel do Meta **não tem Consent Mode**: ou carrega, ou não
+carrega. Por isso `carregarMeta()` exige `temConsentimento()`, ou seja, um **Aceitar**
+explícito no banner. Quem recusa não é medido no Meta, e é assim que tem de ser — não
+troques esta condição por um `DOMINIO_REAL` sozinho.
 </Warning>
 
 ## O chat pede nome e email antes de começar

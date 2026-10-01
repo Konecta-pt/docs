@@ -718,6 +718,66 @@ explícito no banner. Quem recusa não é medido no Meta, e é assim que tem de 
 troques esta condição por um `DOMINIO_REAL` sozinho.
 </Warning>
 
+## Os botões rápidos do chat respondem sozinhos
+
+Clicar num botão rápido já não abre um ticket. O widget responde ali mesmo, com texto
+do FAQ que já existe nas traduções, e só chama uma pessoa se o visitante disser que
+não chegou.
+
+| Botão | Responde com |
+| --- | --- |
+| **Como ativo o meu eSIM?** | `help.act1a` |
+| **Qual o plano mais barato?** | `chat.quick2a` — depende do destino, com link para `/destinations` |
+| **O meu dispositivo é compatível?** | `help.comp1a` |
+| **Problema com o pagamento** | nada. Vai direto a uma pessoa |
+
+O pagamento está de fora **de propósito**. Um problema de pagamento é sempre
+individual — cartão recusado, cobrança a dobrar, encomenda não entregue — e a entrada
+de FAQ mais próxima (`help.pay2a`) promete *reembolso total em 14 dias*. Servir isso
+automaticamente a quem reclama é prometer dinheiro sem ver o caso.
+
+Por baixo da resposta aparece **Isto respondeu à tua pergunta?**. O *Falar com uma
+pessoa* envia uma mensagem a sério, `chat.escalate`, que leva a pergunta lá dentro —
+sem isso tu abrias o Suporte Live e repetias a resposta que já tinha falhado.
+
+<Warning>
+**As respostas automáticas nunca vão para a base de dados.** São balões com id
+`faq-` que só existem naquele browser. O endpoint público força
+`sender_type: 'user'` (`workers/src/routes/public.ts`), e isso não é uma limitação a
+contornar: se um cliente conseguisse gravar uma mensagem como `admin`, qualquer pessoa
+podia forjar um transcript com o "Suporte Konecta" a dizer o que lhe apetecesse. É
+phishing com a tua marca.
+
+O tipo `bot` existe apenas no TypeScript do browser, para o balão ter o rótulo
+**Resposta automática** e não se confundir com uma pessoa.
+</Warning>
+
+<Note>
+**Não há IA nisto, e é uma decisão, não uma limitação.** Um modelo a responder a
+"problema com o pagamento" pode inventar uma política de reembolso que depois tens de
+honrar. Com quatro botões fixos, texto estático responde ao mesmo sem mentir.
+</Note>
+
+O preço do botão dos planos também é estático de propósito. Não existe "plano mais
+barato" — o catálogo é por destino, e um mínimo global ("2 € para a Albânia") não
+ajuda quem vai ao Japão, além de obrigar a descarregar o catálogo todo dentro do widget.
+
+### O polling apagava os balões locais
+
+O tick de 4 em 4 segundos substitui as mensagens pelo que o servidor devolve. As
+respostas de FAQ não existem no servidor, por isso desapareciam no primeiro tick
+depois de a conversa ter mensagens reais.
+
+`reconciliarMensagens()` (`src/lib/chat.ts`) é quem resolve: o servidor é a verdade,
+os `faq-` sobrevivem sempre, os `tmp-` saem quando o servidor confirma o mesmo texto,
+e o resultado é ordenado por `created_at` — senão o FAQ aparecia **depois** da
+escalada só por vir de outra lista. Está preso por `src/test/chatReconcile.test.ts`.
+
+<Note>
+O filtro dos `tmp-` só compara texto de mensagens `user`. Se comparasse todas, um
+admin a repetir a pergunta do cliente fazia a mensagem dele desaparecer do ecrã.
+</Note>
+
 ## O chat pede nome e email antes de começar
 
 Um visitante anónimo não abre conversa sem se identificar: o `ChatWidget` mostra um
